@@ -330,6 +330,23 @@ html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sa
 .don-badge-num{font-size:11px;line-height:1;letter-spacing:.5px;}
 .don-drop-zone{position:relative;}
 .don-drop-zone.drag-over{outline:2px dashed rgba(200,170,60,.8)!important;background:rgba(200,170,60,.1)!important;}
+/* ★ v3.4.0: ドラッグ中の有効ドロップ先ハイライト（ドラッグ開始時に全候補が薄く点滅） */
+.don-drop-zone.drop-candidate{outline:2px dashed rgba(91,200,255,.55)!important;animation:dropPulse 1.2s ease-in-out infinite;}
+.c-drop.drop-candidate{outline:2px dashed rgba(91,200,255,.55)!important;animation:dropPulse 1.2s ease-in-out infinite;}
+@keyframes dropPulse{0%,100%{background:rgba(91,200,255,.06);}50%{background:rgba(91,200,255,.18);}}
+/* ★ v3.4.0: Undo直後のフィールド全体フラッシュ */
+@keyframes undoFlash{0%{box-shadow:inset 0 0 0 0 rgba(255,220,80,0);}30%{box-shadow:inset 0 0 60px 10px rgba(255,220,80,.55);}100%{box-shadow:inset 0 0 0 0 rgba(255,220,80,0);}}
+.undo-flash{animation:undoFlash .55s ease-out;}
+/* ★ v3.4.0: 相手ターン中のフィールドDIM */
+.bf.opp-turn::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:90;pointer-events:none;transition:opacity .25s;}
+.bf{position:relative;}
+/* ★ v3.4.0: YOUR TURN オーバーレイ */
+#turnOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9000;pointer-events:none;}
+#turnOverlay.show{display:flex;animation:turnFade 1.0s ease-out forwards;}
+#turnOverlay .to-inner{font-family:'Bebas Neue','Noto Sans JP',sans-serif;font-size:64px;letter-spacing:6px;font-weight:900;text-shadow:0 0 24px rgba(91,200,255,.9),0 0 8px rgba(0,0,0,.9);color:#fff;}
+#turnOverlay.you .to-inner{color:#5bc8ff;text-shadow:0 0 24px rgba(91,200,255,.9),0 0 8px rgba(0,0,0,.9);}
+#turnOverlay.opp .to-inner{color:#ffb84d;text-shadow:0 0 24px rgba(255,150,40,.9),0 0 8px rgba(0,0,0,.9);}
+@keyframes turnFade{0%{opacity:0;transform:scale(.6);}25%{opacity:1;transform:scale(1.05);}65%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1);}}
 #p1DonZone,#p2DonZone{cursor:grab;}
 #p1DonZone:active,#p2DonZone:active{cursor:grabbing;}
 .active-dons{display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;width:100%;height:100%;padding:2px;box-sizing:border-box;}
@@ -975,7 +992,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.3.0</div>
+    <div class="logo-ver">BATTLE v3.4.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -991,7 +1008,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.3.0</div>
+    <div class="logo-ver">BATTLE v3.4.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1010,7 +1027,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.3.0</div>
+    <div class="logo-ver">BATTLE v3.4.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1033,7 +1050,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.3.0</div>
+    <div class="logo-ver">BATTLE v3.4.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1053,7 +1070,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.3.0</div>
+    <div class="logo-ver">BATTLE v3.4.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1213,6 +1230,8 @@ function fbStartListen() {
 
 <!-- SCREEN 3: バトル -->
 <div class="scr" id="scrBattle">
+  <!-- ★ v3.4.0: ターン交代オーバーレイ -->
+  <div id="turnOverlay"><div class="to-inner">YOUR TURN</div></div>
   <div class="bf">
 
     <!-- P2エリア -->
@@ -1265,7 +1284,6 @@ function fbStartListen() {
     <div class="turn-bar">
       <div class="tbn" id="btnExitBattle">✕</div>
       <div class="tbn" id="btnSettingsBattle">⚙</div>
-      <div class="tbn">↺</div>
       <div class="tbn" id="btnUndo">⏮</div>
       <div class="tbn-sep"></div>
       <div class="turn-chip">
@@ -2376,6 +2394,8 @@ function donStart(e,player,fromZone,fromIdx){
   donGhostEl.innerHTML='<svg viewBox="0 0 60 84" style="width:100%;height:100%"><use href="#doncard"/></svg>';
   donGhostEl.style.left=p.x+'px';donGhostEl.style.top=p.y+'px';
   document.body.appendChild(donGhostEl);
+  // ★ v3.4.0: 有効ドロップ候補をハイライト
+  try{ donAllZones().forEach(function(el){ el.classList.add('drop-candidate'); }); }catch(e){}
 }
 function donMove(e){
   if(!donDrag)return; e.preventDefault();
@@ -2389,7 +2409,7 @@ function donMove(e){
 function donEnd(e){
   if(!donDrag)return;
   donGhostEl.remove();donGhostEl=null;
-  donAllZones().forEach(el=>el.classList.remove('drag-over'));
+  donAllZones().forEach(el=>{ el.classList.remove('drag-over'); el.classList.remove('drop-candidate'); });
   const p=(e.type==='touchend')?donLastXY:donGetXY(e);
   // ★ 移動距離が短い場合はタップとみなしキャンセル（誤移動防止）
   var dx=Math.abs(p.x-(donDrag._startX||0)),dy=Math.abs(p.y-(donDrag._startY||0));
@@ -2678,9 +2698,20 @@ function undoState(){
     if(bdc)bdc.textContent=dpState[p].deck.length;
     tpUpdateTrashBadge(p,dpState[p].trash.length);
   });
+  // ★ v3.4.0: Undo直後にフィールド全体を黄色フラッシュ
+  try{
+    var bf=document.querySelector('#scrBattle .bf');
+    if(bf){
+      bf.classList.remove('undo-flash');
+      void bf.offsetWidth; // reflowでアニメ再生
+      bf.classList.add('undo-flash');
+      setTimeout(function(){ bf.classList.remove('undo-flash'); }, 600);
+    }
+    if(navigator.vibrate){ try{ navigator.vibrate(20); }catch(e){} }
+  }catch(e){}
   // ★ 相手画面にも反映
   if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
-  toast('1つ戻しました');
+  toast('⏮ 1つ戻しました');
 }
 
 function showBattleDemo(){
@@ -2788,6 +2819,22 @@ function isMyTurn(){
   return true;
 }
 
+// ★ v3.4.0: 直前のターン状態を保持（オーバーレイ発火判定用）
+var _prevTurnKey=null;
+function showTurnOverlay(isYou){
+  try{
+    var ov=document.getElementById('turnOverlay');
+    if(!ov) return;
+    var inner=ov.querySelector('.to-inner');
+    if(inner) inner.textContent = isYou ? 'YOUR TURN' : "OPPONENT'S TURN";
+    ov.classList.remove('show','you','opp');
+    // reflow（アニメーション再生のため）
+    void ov.offsetWidth;
+    ov.classList.add('show', isYou?'you':'opp');
+    setTimeout(function(){ ov.classList.remove('show'); }, 1100);
+    if(isYou && navigator.vibrate){ try{ navigator.vibrate(40); }catch(e){} }
+  }catch(e){}
+}
 function updateTurnChip(){
   const w=document.getElementById('tcWho'),n=document.getElementById('tcNum'),a=document.getElementById('tcArrow');
   // 現在のターンがどのプレイヤーか判定
@@ -2798,8 +2845,9 @@ function updateTurnChip(){
   if(a)a.textContent=isP1Turn?'↓':'↑';
   // 次のターンボタンの状態を自分のターンに応じて切替
   var nb=document.getElementById('btnNextTurn');
+  var myTurn = isMyTurn();
   if(nb){
-    if(isMyTurn()){
+    if(myTurn){
       nb.style.background='linear-gradient(135deg,#1a3a8f,#2d6ae0)';
       nb.style.opacity='1';
     } else {
@@ -2807,6 +2855,15 @@ function updateTurnChip(){
       nb.style.opacity='0.4';
     }
   }
+  // ★ v3.4.0: フィールド全体のDIMを切替
+  var bf=document.querySelector('#scrBattle .bf');
+  if(bf){ bf.classList.toggle('opp-turn', !myTurn); }
+  // ★ v3.4.0: ターンが切り替わった瞬間にオーバーレイ表示
+  var key = battleTurn+'/'+battleWho;
+  if(_prevTurnKey!==null && _prevTurnKey!==key){
+    showTurnOverlay(myTurn);
+  }
+  _prevTurnKey = key;
 }
 function nextTurn(){
   try{
@@ -4454,6 +4511,14 @@ function startCDrag(e,id,srcPlayer){
   else{cGhostImg.src='';cGhost.style.background='linear-gradient(145deg,#1a2456,#0c1628)';cGhost.style.border='2px solid rgba(200,170,60,.5)';}
   cGhost.style.display='block';
   cGhost.style.left=e.clientX+'px';cGhost.style.top=e.clientY+'px';
+  // ★ v3.4.0: 有効ドロップ候補をハイライト（プレイヤー制約に従って）
+  try{
+    document.querySelectorAll('.c-drop').forEach(function(el){
+      var zone=el.dataset.zone, elPlayer=el.dataset.player;
+      if(sp && (zone==='char'||zone==='stage') && elPlayer && elPlayer!==sp) return;
+      el.classList.add('drop-candidate');
+    });
+  }catch(err){}
 }
 function onCMouseMove(e){
   if(!cardDragState)return;
@@ -4487,13 +4552,13 @@ function endCDrag(){
   var isMyCard=(dragLoc&&dragLoc.indexOf(myP4)>=0)||(myP4==='p1'&&dragLoc==='hand');
   if(!isMyTurn()&&!isMyCard){
     if(cGhost)cGhost.style.display='none';
-    document.querySelectorAll('.c-hover').forEach(el=>el.classList.remove('c-hover'));
+    document.querySelectorAll('.c-hover,.drop-candidate').forEach(el=>el.classList.remove('c-hover','drop-candidate'));
     cardDragState=null;
     toast('⛔ 相手のターンです');return;
   }
   if(cardDragState&&cardDragState._isDeckDrag){endDeckDrag();return;}
   cGhost.style.display='none';cGhost.style.background='';cGhost.style.border='';
-  document.querySelectorAll('.c-hover').forEach(el=>el.classList.remove('c-hover'));
+  document.querySelectorAll('.c-hover,.drop-candidate').forEach(el=>el.classList.remove('c-hover','drop-candidate'));
   const {x,y}=cardLastXY;
   let target=null,minA=Infinity;
   const sp=cardDragState&&cardDragState._srcPlayer||null;
