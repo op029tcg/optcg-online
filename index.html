@@ -347,6 +347,32 @@ html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sa
 #turnOverlay.you .to-inner{color:#5bc8ff;text-shadow:0 0 24px rgba(91,200,255,.9),0 0 8px rgba(0,0,0,.9);}
 #turnOverlay.opp .to-inner{color:#ffb84d;text-shadow:0 0 24px rgba(255,150,40,.9),0 0 8px rgba(0,0,0,.9);}
 @keyframes turnFade{0%{opacity:0;transform:scale(.6);}25%{opacity:1;transform:scale(1.05);}65%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1);}}
+/* ★ v3.5.0: アロー注釈 */
+#arrowSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:80;overflow:visible;}
+#arrowSvg .arrow-path{fill:none;stroke-width:3;stroke-linecap:round;stroke-dasharray:6 4;filter:drop-shadow(0 0 3px rgba(0,0,0,.85));}
+#arrowSvg .arrow-head{filter:drop-shadow(0 0 3px rgba(0,0,0,.85));}
+#arrowSvg .arrow-draft{fill:none;stroke:#ffd54a;stroke-width:3;stroke-linecap:round;stroke-dasharray:8 4;opacity:.85;filter:drop-shadow(0 0 3px rgba(0,0,0,.85));}
+.arrow-label{position:absolute;transform:translate(-50%,-50%);background:rgba(0,0,0,.86);border:1px solid currentColor;border-radius:6px;padding:2px 7px;font-family:'Bebas Neue','Noto Sans JP',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;white-space:nowrap;cursor:pointer;pointer-events:auto;z-index:81;display:flex;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent;}
+.arrow-label .al-x{font-size:9px;opacity:.6;padding-left:4px;border-left:1px solid rgba(255,255,255,.2);}
+body.arrow-mode #scrBattle .bf{cursor:crosshair;}
+body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,body.arrow-mode .leader-zone,body.arrow-mode .stage-zone,body.arrow-mode .don-zone,body.arrow-mode .free-zone,body.arrow-mode .life-stack,body.arrow-mode .deck-zone{cursor:crosshair!important;}
+.tbn.arrow-active{background:rgba(255,213,74,.25)!important;color:#ffd54a!important;outline:1.5px solid rgba(255,213,74,.7);}
+/* ARROW EDIT モーダル */
+#arrowEditOverlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:9500;}
+#arrowEditOverlay.show{display:flex;}
+#arrowEditPanel{width:100%;max-width:560px;background:linear-gradient(180deg,#0d1835,#0a132c);border-top:2px solid rgba(200,170,60,.6);border-radius:14px 14px 0 0;padding:16px 18px 18px;color:#fff;box-shadow:0 -10px 30px rgba(0,0,0,.6);}
+#arrowEditPanel .ae-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#ffd54a;letter-spacing:2px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+#arrowEditPanel .ae-close{cursor:pointer;font-size:22px;color:#aab;padding:2px 8px;-webkit-tap-highlight-color:transparent;}
+#arrowEditPanel .ae-sec{font-size:11px;color:#aab;margin:8px 0 6px;letter-spacing:1px;}
+#arrowEditPanel .ae-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+#arrowEditPanel .ae-act{padding:10px 4px;border-radius:8px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#cde;font-size:12px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;}
+#arrowEditPanel .ae-act .ae-ic{font-size:18px;}
+#arrowEditPanel .ae-act.sel{background:linear-gradient(135deg,#7a5a18,#d4a820);color:#0a0a0a;border-color:#ffd54a;}
+#arrowEditPanel .ae-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;font-family:inherit;box-sizing:border-box;margin-top:4px;}
+#arrowEditPanel .ae-btns{display:flex;gap:8px;margin-top:14px;}
+#arrowEditPanel .ae-btn{flex:1;padding:12px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+#arrowEditPanel .ae-btn.ae-del{background:linear-gradient(135deg,#7c1d1d,#b91c1c);color:#fff;}
+#arrowEditPanel .ae-btn.ae-ok{background:linear-gradient(135deg,#a17a18,#ffd54a);color:#0a0a0a;}
 #p1DonZone,#p2DonZone{cursor:grab;}
 #p1DonZone:active,#p2DonZone:active{cursor:grabbing;}
 .active-dons{display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;width:100%;height:100%;padding:2px;box-sizing:border-box;}
@@ -661,6 +687,7 @@ function fbPushState() {
       battleTurn: battleTurn,
       battleWho: battleWho,
       p1First: p1First,
+      arrows: safeJSON(arrowsState||[]), // ★ v3.5.0
       sessionId: FB_SESSION_ID,
       updatedBy: MY_ROLE,
       updatedAt: Date.now()
@@ -829,9 +856,16 @@ function fbStartListen() {
       if(snap.battleTurn !== undefined) battleTurn = snap.battleTurn;
       if(snap.battleWho !== undefined) battleWho = snap.battleWho;
       if(snap.p1First !== undefined) p1First = snap.p1First;
+      // ★ v3.5.0: アロー注釈の同期受信
+      if(snap.arrows !== undefined){
+        var rawArr = snap.arrows;
+        if(rawArr && !Array.isArray(rawArr)) rawArr = Object.values(rawArr);
+        arrowsState = Array.isArray(rawArr) ? rawArr : [];
+      }
       // 全再描画
       renderHand();
       renderField();
+      try{ arrowRender(); }catch(e){} // ★ v3.5.0
       renderDonState('p1'); renderDonState('p2');
       if(lifeCardFace.p1&&lifeCardFace.p1.length!==undefined)
         renderLifeMarks('p1LifeMarks', lifeCardFace.p1.length);
@@ -992,7 +1026,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.4.0</div>
+    <div class="logo-ver">BATTLE v3.5.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1008,7 +1042,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.4.0</div>
+    <div class="logo-ver">BATTLE v3.5.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1027,7 +1061,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.4.0</div>
+    <div class="logo-ver">BATTLE v3.5.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1050,7 +1084,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.4.0</div>
+    <div class="logo-ver">BATTLE v3.5.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1070,7 +1104,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.4.0</div>
+    <div class="logo-ver">BATTLE v3.5.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1284,6 +1318,7 @@ function fbStartListen() {
     <div class="turn-bar">
       <div class="tbn" id="btnExitBattle">✕</div>
       <div class="tbn" id="btnSettingsBattle">⚙</div>
+      <div class="tbn" id="btnArrow" title="アロー注釈モード">🏹</div>
       <div class="tbn" id="btnUndo">⏮</div>
       <div class="tbn-sep"></div>
       <div class="turn-chip">
@@ -1355,6 +1390,21 @@ function fbStartListen() {
   <div style="max-width:280px;width:80%;position:relative;" onclick="event.stopPropagation()">
     <img id="cardZoomImg" src="" alt="" style="width:100%;border-radius:12px;box-shadow:0 12px 48px rgba(0,0,0,.9);display:block;">
     <button onclick="cardZoomClose()" style="position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:#222;border:2px solid rgba(255,255,255,.3);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>
+  </div>
+</div>
+
+<!-- ★ v3.5.0: アロー注釈 編集モーダル -->
+<div id="arrowEditOverlay">
+  <div id="arrowEditPanel">
+    <div class="ae-title"><span>→ ARROW EDIT</span><span class="ae-close" id="aeClose">✕</span></div>
+    <div class="ae-sec">アクション種別</div>
+    <div class="ae-grid" id="aeGrid"></div>
+    <div class="ae-sec">カスタムラベル（任意）</div>
+    <input type="text" class="ae-input" id="aeLabel" placeholder="例: 2000 / ブロッカー起動" maxlength="20">
+    <div class="ae-btns">
+      <button class="ae-btn ae-del" id="aeDel">🗑 削除</button>
+      <button class="ae-btn ae-ok"  id="aeOk">✓ 適用</button>
+    </div>
   </div>
 </div>
 
@@ -2668,7 +2718,8 @@ function saveState(){
     ldrRestedP1:ldrRested.p1,
     ldrRestedP2:ldrRested.p2,
     battleTurn:battleTurn,
-    battleWho:battleWho
+    battleWho:battleWho,
+    arrows:safeJSON(arrowsState||[]) // ★ v3.5.0
   };
   undoHistory.push(snap);
   if(undoHistory.length>UNDO_MAX)undoHistory.shift();
@@ -2685,6 +2736,8 @@ function undoState(){
   lifeCardsData.p1=snap.lifeDataP1;lifeCardsData.p2=snap.lifeDataP2;
   ldrRested.p1=snap.ldrRestedP1;ldrRested.p2=snap.ldrRestedP2;
   battleTurn=snap.battleTurn;battleWho=snap.battleWho;
+  // ★ v3.5.0: アロー注釈の復元
+  arrowsState = Array.isArray(snap.arrows) ? snap.arrows : [];
   // 全再描画
   renderHand();renderField();
   renderDonState('p1');renderDonState('p2');
@@ -2709,6 +2762,8 @@ function undoState(){
     }
     if(navigator.vibrate){ try{ navigator.vibrate(20); }catch(e){} }
   }catch(e){}
+  // ★ v3.5.0: アロー注釈の再描画
+  try{ arrowRender(); }catch(e){}
   // ★ 相手画面にも反映
   if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
   toast('⏮ 1つ戻しました');
@@ -2819,6 +2874,276 @@ function isMyTurn(){
   return true;
 }
 
+// ══════ ★ v3.5.0: アロー注釈システム ══════
+var arrowsState = []; // [{id, from:{zone}, to:{zone}, action, label, by, ts}]
+var arrowMode = false;
+var arrowDraft = null; // 描画中: {fromAnchor, fromXY, lastXY}
+var ARROW_ACTIONS = [
+  {k:'attack', ic:'⚔', name:'アタック', color:'#ef4444'},
+  {k:'effect', ic:'⚡', name:'効果',     color:'#5bc8ff'},
+  {k:'enter',  ic:'⭐', name:'登場',     color:'#ffd54a'},
+  {k:'recover',ic:'✸',  name:'回収',    color:'#10b981'},
+  {k:'search', ic:'↺',  name:'サーチ',  color:'#a78bfa'},
+  {k:'ko',     ic:'✕',  name:'KO',      color:'#dc2626'},
+  {k:'cost',   ic:'◆',  name:'コスト',  color:'#94a3b8'},
+  {k:'don',    ic:'❖',  name:'DON付与', color:'#f59e0b'},
+  {k:'counter',ic:'🛡',  name:'カウンター',color:'#22d3ee'}
+];
+function _arrowActionMeta(k){
+  for(var i=0;i<ARROW_ACTIONS.length;i++) if(ARROW_ACTIONS[i].k===k) return ARROW_ACTIONS[i];
+  return ARROW_ACTIONS[0];
+}
+function arrowEnsureSvg(){
+  var bf=document.querySelector('#scrBattle .bf');
+  if(!bf) return null;
+  var svg=document.getElementById('arrowSvg');
+  if(!svg){
+    svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.id='arrowSvg';
+    bf.appendChild(svg);
+  }
+  return svg;
+}
+function arrowAnchorEl(anchor){
+  if(!anchor) return null;
+  if(anchor.zone==='trash' && anchor.player){
+    return document.querySelector('.uzone.c-drop[data-player="'+anchor.player+'"][data-zone="trash"]');
+  }
+  if(anchor.zone==='cslot'){
+    return document.querySelector('#'+anchor.player+'CharArea .cslot[data-idx="'+anchor.idx+'"]');
+  }
+  if(anchor.zone) return document.getElementById(anchor.zone);
+  return null;
+}
+function arrowAnchorXY(anchor){
+  var el=arrowAnchorEl(anchor); if(!el) return null;
+  var bf=document.querySelector('#scrBattle .bf'); if(!bf) return null;
+  var r=el.getBoundingClientRect(), br=bf.getBoundingClientRect();
+  return { x: r.left + r.width/2 - br.left, y: r.top + r.height/2 - br.top };
+}
+function arrowAnchorAtPoint(x,y){
+  var el=document.elementFromPoint(x,y); if(!el) return null;
+  var node=el;
+  while(node && node!==document.body){
+    if(node.classList){
+      if(node.classList.contains('cslot') && node.dataset && node.dataset.player && node.dataset.idx!=null){
+        return {zone:'cslot', player:node.dataset.player, idx:node.dataset.idx};
+      }
+      if(node.id){
+        var IDS=['p1LeaderZone','p2LeaderZone','p1StageZone','p2StageZone',
+                 'p1DonZone','p2DonZone','p1ActiveZone','p2ActiveZone','p1RestZone','p2RestZone',
+                 'p1FreeZone','p2FreeZone','p1DeckZone','p2DeckZone','p1LifeStack','p2LifeStack',
+                 'p1HandArea','p2HandArea'];
+        if(IDS.indexOf(node.id)>=0) return {zone:node.id};
+      }
+      if(node.dataset && node.dataset.zone==='trash' && node.dataset.player){
+        return {zone:'trash', player:node.dataset.player};
+      }
+    }
+    node=node.parentNode;
+  }
+  return null;
+}
+function arrowClientToLocal(cx,cy){
+  var bf=document.querySelector('#scrBattle .bf'); if(!bf) return {x:cx,y:cy};
+  var br=bf.getBoundingClientRect();
+  return {x:cx-br.left, y:cy-br.top};
+}
+function arrowToggleMode(){
+  arrowMode=!arrowMode;
+  document.body.classList.toggle('arrow-mode', arrowMode);
+  var btn=document.getElementById('btnArrow');
+  if(btn) btn.classList.toggle('arrow-active', arrowMode);
+  if(arrowMode){
+    toast('🏹 アローモード ON / カードからカードへドラッグ');
+    arrowAttachListeners();
+  }else{
+    arrowCancelDraft();
+    arrowDetachListeners();
+    toast('🏹 アローモード OFF');
+  }
+}
+function _arrowGetXY(e){
+  if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  if(e.changedTouches && e.changedTouches[0]) return {x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+function arrowOnStart(e){
+  if(!arrowMode) return;
+  var p=_arrowGetXY(e);
+  var anchor=arrowAnchorAtPoint(p.x,p.y);
+  if(!anchor) return;
+  e.preventDefault(); e.stopPropagation();
+  var local=arrowClientToLocal(p.x,p.y);
+  arrowDraft={fromAnchor:anchor, fromXY:arrowAnchorXY(anchor)||local, lastXY:local};
+  arrowRender();
+}
+function arrowOnMove(e){
+  if(!arrowMode || !arrowDraft) return;
+  e.preventDefault();
+  var p=_arrowGetXY(e);
+  arrowDraft.lastXY=arrowClientToLocal(p.x,p.y);
+  arrowRender();
+}
+function arrowOnEnd(e){
+  if(!arrowMode || !arrowDraft) return;
+  var p=_arrowGetXY(e);
+  var toAnchor=arrowAnchorAtPoint(p.x,p.y);
+  var fromAnchor=arrowDraft.fromAnchor;
+  arrowDraft=null;
+  if(!toAnchor){ arrowRender(); return; }
+  if(JSON.stringify(toAnchor)===JSON.stringify(fromAnchor)){ arrowRender(); return; }
+  var newArr={ id:'arr_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+               from:fromAnchor, to:toAnchor,
+               action:'attack', label:'',
+               by:MY_ROLE||'p1', ts:Date.now() };
+  saveState();
+  arrowsState.push(newArr);
+  arrowRender();
+  arrowEditOpen(newArr.id);
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+}
+function arrowCancelDraft(){ arrowDraft=null; arrowRender(); }
+var _arrowListenersAttached=false;
+function arrowAttachListeners(){
+  if(_arrowListenersAttached) return;
+  var bf=document.querySelector('#scrBattle .bf'); if(!bf) return;
+  bf.addEventListener('touchstart', arrowOnStart, {passive:false});
+  bf.addEventListener('touchmove',  arrowOnMove,  {passive:false});
+  bf.addEventListener('touchend',   arrowOnEnd,   {passive:false});
+  bf.addEventListener('mousedown',  arrowOnStart);
+  bf.addEventListener('mousemove',  arrowOnMove);
+  bf.addEventListener('mouseup',    arrowOnEnd);
+  _arrowListenersAttached=true;
+}
+function arrowDetachListeners(){
+  if(!_arrowListenersAttached) return;
+  var bf=document.querySelector('#scrBattle .bf'); if(!bf) return;
+  bf.removeEventListener('touchstart', arrowOnStart);
+  bf.removeEventListener('touchmove',  arrowOnMove);
+  bf.removeEventListener('touchend',   arrowOnEnd);
+  bf.removeEventListener('mousedown',  arrowOnStart);
+  bf.removeEventListener('mousemove',  arrowOnMove);
+  bf.removeEventListener('mouseup',    arrowOnEnd);
+  _arrowListenersAttached=false;
+}
+function arrowRender(){
+  var svg=arrowEnsureSvg(); if(!svg) return;
+  var bf=svg.parentNode;
+  bf.querySelectorAll('.arrow-label').forEach(function(el){ el.remove(); });
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  arrowsState.forEach(function(a){
+    var p1=arrowAnchorXY(a.from), p2=arrowAnchorXY(a.to);
+    if(!p1||!p2) return;
+    var meta=_arrowActionMeta(a.action);
+    var mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+    var dx=p2.x-p1.x, dy=p2.y-p1.y;
+    var len=Math.sqrt(dx*dx+dy*dy)||1;
+    var nx=-dy/len, ny=dx/len;
+    var bow=Math.min(40, len*0.18);
+    var cx=mx+nx*bow, cy=my+ny*bow;
+    var d='M '+p1.x+' '+p1.y+' Q '+cx+' '+cy+' '+p2.x+' '+p2.y;
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d);
+    path.setAttribute('class','arrow-path');
+    path.setAttribute('stroke',meta.color);
+    svg.appendChild(path);
+    var ang=Math.atan2(p2.y-cy, p2.x-cx);
+    var ah=12;
+    var ax1=p2.x-ah*Math.cos(ang-Math.PI/6), ay1=p2.y-ah*Math.sin(ang-Math.PI/6);
+    var ax2=p2.x-ah*Math.cos(ang+Math.PI/6), ay2=p2.y-ah*Math.sin(ang+Math.PI/6);
+    var head=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    head.setAttribute('points', p2.x+','+p2.y+' '+ax1+','+ay1+' '+ax2+','+ay2);
+    head.setAttribute('class','arrow-head');
+    head.setAttribute('fill',meta.color);
+    svg.appendChild(head);
+    var lx=(p1.x+2*cx+p2.x)/4, ly=(p1.y+2*cy+p2.y)/4;
+    var lab=document.createElement('div');
+    lab.className='arrow-label';
+    lab.style.left=lx+'px'; lab.style.top=ly+'px';
+    lab.style.color=meta.color;
+    lab.dataset.arrowId=a.id;
+    lab.innerHTML='<span>'+meta.ic+' '+(a.label?a.label:meta.name)+'</span><span class="al-x">✕</span>';
+    lab.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      if(ev.target.classList && ev.target.classList.contains('al-x')){
+        arrowDelete(a.id);
+      }else{
+        arrowEditOpen(a.id);
+      }
+    });
+    bf.appendChild(lab);
+  });
+  if(arrowDraft && arrowDraft.fromXY){
+    var p1=arrowDraft.fromXY, p2=arrowDraft.lastXY||p1;
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', 'M '+p1.x+' '+p1.y+' L '+p2.x+' '+p2.y);
+    path.setAttribute('class','arrow-draft');
+    svg.appendChild(path);
+  }
+}
+function arrowDelete(id){
+  var i=arrowsState.findIndex(function(a){return a.id===id;});
+  if(i<0) return;
+  saveState();
+  arrowsState.splice(i,1);
+  arrowRender();
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+}
+var _arrowEditingId=null, _arrowEditAction='attack';
+function arrowEditOpen(id){
+  var a=arrowsState.find(function(x){return x.id===id;});
+  if(!a) return;
+  _arrowEditingId=id; _arrowEditAction=a.action;
+  var grid=document.getElementById('aeGrid');
+  if(grid){
+    grid.innerHTML='';
+    ARROW_ACTIONS.forEach(function(act){
+      var b=document.createElement('div');
+      b.className='ae-act'+(act.k===_arrowEditAction?' sel':'');
+      b.innerHTML='<div class="ae-ic" style="color:'+act.color+'">'+act.ic+'</div>'+act.name;
+      b.addEventListener('click', function(){
+        _arrowEditAction=act.k;
+        grid.querySelectorAll('.ae-act').forEach(function(x){x.classList.remove('sel');});
+        b.classList.add('sel');
+      });
+      grid.appendChild(b);
+    });
+  }
+  var inp=document.getElementById('aeLabel'); if(inp) inp.value=a.label||'';
+  document.getElementById('arrowEditOverlay').classList.add('show');
+}
+function arrowEditClose(){
+  _arrowEditingId=null;
+  document.getElementById('arrowEditOverlay').classList.remove('show');
+}
+function arrowEditApply(){
+  if(!_arrowEditingId) return arrowEditClose();
+  var a=arrowsState.find(function(x){return x.id===_arrowEditingId;});
+  if(!a) return arrowEditClose();
+  saveState();
+  a.action=_arrowEditAction;
+  var inp=document.getElementById('aeLabel');
+  a.label=inp?(inp.value||'').slice(0,20):'';
+  arrowEditClose();
+  arrowRender();
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+}
+function arrowEditDelete(){
+  if(!_arrowEditingId) return arrowEditClose();
+  var id=_arrowEditingId;
+  arrowEditClose();
+  arrowDelete(id);
+}
+function arrowInitButtons(){
+  var c=document.getElementById('aeClose'); if(c && !c._bound){ c._bound=true; c.addEventListener('click', arrowEditClose); }
+  var ok=document.getElementById('aeOk');   if(ok && !ok._bound){ ok._bound=true; ok.addEventListener('click', arrowEditApply); }
+  var del=document.getElementById('aeDel'); if(del && !del._bound){ del._bound=true; del.addEventListener('click', arrowEditDelete); }
+  var ov=document.getElementById('arrowEditOverlay');
+  if(ov && !ov._bound){ ov._bound=true; ov.addEventListener('click', function(e){ if(e.target===ov) arrowEditClose(); }); }
+}
+window.addEventListener('resize', function(){ try{ arrowRender(); }catch(e){} });
+
 // ★ v3.4.0: 直前のターン状態を保持（オーバーレイ発火判定用）
 var _prevTurnKey=null;
 function showTurnOverlay(isYou){
@@ -2869,6 +3194,8 @@ function nextTurn(){
   try{
   if(!isMyTurn()){toast('⛔ 相手のターンです');return;}
   saveState();
+  // ★ v3.5.0: ターン交代時にアロー注釈をクリア
+  if(arrowsState && arrowsState.length){ arrowsState=[]; try{ arrowRender(); }catch(e){} }
   if(battleWho==='先'){battleWho='後';}else{battleWho='先';battleTurn++;}
 
   // 現在のターンのプレイヤーを判定
@@ -2975,6 +3302,12 @@ function cleanupOnExit(){
     try{ if(_trashVisRef){ _trashVisRef.off('value'); _trashVisRef=null; } }catch(e){}
     fbListening = false;
     FB_SESSION_ID = null;
+    // ★ v3.5.0: アロー状態とモードをリセット
+    try{
+      arrowsState=[]; arrowDraft=null;
+      if(arrowMode){ arrowMode=false; document.body.classList.remove('arrow-mode'); var ab=document.getElementById('btnArrow'); if(ab) ab.classList.remove('arrow-active'); arrowDetachListeners(); }
+      arrowRender();
+    }catch(e){}
     if(FB_ROOM){
       // battleStateを削除
       if(battleRef) battleRef.remove();
@@ -4128,6 +4461,8 @@ function renderField(){
     if(lc.sEff){var se=document.createElement('div');se.className='field-stag f-eff';se.textContent='効果✕';se.style.top=tagY+'px';se.style.left='50%';se.style.transform='translateX(-50%)';lz.appendChild(se);tagY+=12;}
     if(lc.locked){var lk=document.createElement('div');lk.className='field-lock';lk.textContent='🔒';lz.appendChild(lk);}
   });
+  // ★ v3.5.0: フィールド再描画後にアロー注釈も描き直す
+  try{ arrowRender(); }catch(e){}
 }
 function makeHCard(c){
   const div=document.createElement('div');div.className='battle-hand-card';div.dataset.cardId=c.id;
@@ -5175,6 +5510,9 @@ document.addEventListener('DOMContentLoaded',function(){
   // バトル画面
   bindBtn('btnNextTurn', nextTurn);
   bindBtn('btnUndo', undoState);
+  // ★ v3.5.0: アロー注釈モード
+  bindBtn('btnArrow', arrowToggleMode);
+  try{ arrowInitButtons(); }catch(e){}
 
   // ✕ボタン → 確認モーダル
   bindBtn('btnExitBattle', function(){
