@@ -609,13 +609,18 @@ if(FB_ROOM){ initFirebaseRefs(FB_ROOM); }
 
 // ゲーム状態をFirebaseに送信する関数
 // ★ safeJSON：undefined→nullに変換してJSON化（fbPushState/fbStartListen用）
+// ★ v3.3.0: 失敗を呼び出し側で検知できるよう、エラー時はSAFE_JSON_FAILを返す
+var SAFE_JSON_FAIL = {__safeJSONFail:true};
 function safeJSON(obj){
   try{ return JSON.parse(JSON.stringify(obj, function(k,v){ return v===undefined?null:v; })); }
-  catch(e){ return null; }
+  catch(e){ console.warn('safeJSON failed:', e); return SAFE_JSON_FAIL; }
 }
+function _isJSONFail(v){ return v && typeof v==='object' && v.__safeJSONFail===true; }
 
 function fbPushState() {
   try {
+    // ★ v3.3.0: ロール未確定や battleRef 未初期化のときは送信しない（部屋汚染防止）
+    if(!battleRef || !FB_ROOM || !MY_ROLE) return;
     // 自分側のdpStateのみ送信（相手側は相手が管理）
     var myDp = MY_ROLE==='p2' ? {
       dpP2Deck: safeJSON(dpState.p2.deck),
@@ -643,6 +648,15 @@ function fbPushState() {
       updatedBy: MY_ROLE,
       updatedAt: Date.now()
     }, myDp);
+    // ★ v3.3.0: いずれかのフィールドがシリアライズ失敗していたら set しない（state全消去防止）
+    var keys = Object.keys(snap);
+    for(var i=0;i<keys.length;i++){
+      if(_isJSONFail(snap[keys[i]])){
+        console.warn('fbPushState: aborted due to safeJSON failure on', keys[i]);
+        toast('⚠️ 送信中断: 状態のシリアライズに失敗');
+        return;
+      }
+    }
     battleRef.set(snap);
   } catch(e) {
     console.warn('fbPushState error:', e);
@@ -961,7 +975,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.2.1</div>
+    <div class="logo-ver">BATTLE v3.3.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -977,7 +991,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.2.1</div>
+    <div class="logo-ver">BATTLE v3.3.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -996,7 +1010,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.2.1</div>
+    <div class="logo-ver">BATTLE v3.3.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1019,7 +1033,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.2.1</div>
+    <div class="logo-ver">BATTLE v3.3.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1039,7 +1053,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.2.1</div>
+    <div class="logo-ver">BATTLE v3.3.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1606,10 +1620,14 @@ function setMyTrashVis(mode){
     }
   }catch(e){}
 }
+var _trashVisRef = null; // ★ v3.3.0: 解除用 ref
 function fbTrashVisListen(){
   if(typeof fbDB==='undefined'||!FB_ROOM) return;
   var opponent=MY_ROLE==='p1'?'p2':'p1';
-  fbDB.ref('rooms/'+FB_ROOM+'/trashVis/'+opponent).on('value',function(snap){
+  // 既存リスナーがあれば一旦解除（重複登録防止）
+  if(_trashVisRef){ try{ _trashVisRef.off('value'); }catch(e){} }
+  _trashVisRef = fbDB.ref('rooms/'+FB_ROOM+'/trashVis/'+opponent);
+  _trashVisRef.on('value',function(snap){
     var mode=snap.val();
     if(!mode) return;
     trashVisMode[opponent]=mode;
@@ -1673,10 +1691,13 @@ function setMyDeckVis(mode){
   }catch(e){}
 }
 // Firebase deckVisリスナー（相手の公開状態を受信）
+var _deckVisRef = null; // ★ v3.3.0: 解除用 ref
 function fbDeckVisListen(){
   if(typeof fbDB==='undefined'||!FB_ROOM) return;
   var opponent=MY_ROLE==='p1'?'p2':'p1';
-  fbDB.ref('rooms/'+FB_ROOM+'/deckVis/'+opponent).on('value',function(snap){
+  if(_deckVisRef){ try{ _deckVisRef.off('value'); }catch(e){} }
+  _deckVisRef = fbDB.ref('rooms/'+FB_ROOM+'/deckVis/'+opponent);
+  _deckVisRef.on('value',function(snap){
     var mode=snap.val();
     if(!mode) return;
     deckVisMode[opponent]=mode;
@@ -1751,10 +1772,13 @@ function settingsUpdateMyHandLabel(){
   }
 }
 // Firebase handVisリスナー（相手の公開状態を受信）
+var _handVisRef = null; // ★ v3.3.0: 解除用 ref
 function fbHandVisListen(){
   if(typeof fbDB==='undefined'||!FB_ROOM) return;
   var opponent=MY_ROLE==='p1'?'p2':'p1';
-  fbDB.ref('rooms/'+FB_ROOM+'/handVis/'+opponent).on('value',function(snap){
+  if(_handVisRef){ try{ _handVisRef.off('value'); }catch(e){} }
+  _handVisRef = fbDB.ref('rooms/'+FB_ROOM+'/handVis/'+opponent);
+  _handVisRef.on('value',function(snap){
     var mode=snap.val();
     if(!mode) return;
     handVisMode[opponent]=mode;
@@ -1963,9 +1987,13 @@ function renderHandScreen(){
 function renderHandDemo(){
   if(!DP_CARDS||!DP_CARDS.length){toast('DP_CARDSが空です');return;}
   function pickRandom(arr,n){
+    if(!arr||!arr.length) return [];
     const s=[...arr].sort(()=>Math.random()-.5);
     const result=[];
-    while(result.length<n)result.push(...s);
+    while(result.length<n){
+      if(s.length===0) break;
+      result.push(...s);
+    }
     return result.slice(0,n);
   }
   const toHandCard = c => ({id:c.id, name:c.name, image:c.img}); // ← Fix3: image に c.img をセット
@@ -2163,6 +2191,7 @@ function startBattleReady(){
           fbDB.ref('rooms/'+FB_ROOM+'/battleGo').off('value', onBattleGo);
           // セッションIDをP1と共有（battleGoのtimestampを使用）
           FB_SESSION_ID = val.timestamp ? val.timestamp.toString(36) : Date.now().toString(36);
+          try{ sessionIdStorageSave(FB_SESSION_ID); }catch(e){}
           // battleGoにもP1リーダー情報が含まれる場合はp1Deckに反映
           if(val.p1LeaderPower&&p1Deck) p1Deck.leaderPower=val.p1LeaderPower;
           if(val.p1LeaderLife&&p1Deck)  p1Deck.leaderLife=val.p1LeaderLife;
@@ -2192,6 +2221,7 @@ function showBattleStartBtn(){
     setTimeout(function(){ _t = false; }, 600);
     var sessionTs = Date.now();
     FB_SESSION_ID = sessionTs.toString(36); // P1がセッションIDを決定
+    try{ sessionIdStorageSave(FB_SESSION_ID); }catch(e){}
     fbDB.ref('rooms/'+FB_ROOM+'/battleGo').set({
       go:true,
       p2LeaderId:p2Deck?(p2Deck.leader||null):null,
@@ -2216,6 +2246,7 @@ function showBattleStartBtn(){
 function startBattle(){
   // セッションID生成（バトルごとに一意）
   if(!FB_SESSION_ID) FB_SESSION_ID = Date.now().toString(36);
+  try{ sessionIdStorageSave(FB_SESSION_ID); }catch(e){}
   // ★ onDisconnect設定（ブラウザを閉じたら自動削除）
   setupOnDisconnect();
   // ★ バトル開始時にbattleStateの古いデータをクリア（キャッシュ対策）
@@ -2880,6 +2911,13 @@ let tTO;
 // ★ ゲーム終了・退出時のクリーンアップ
 function cleanupOnExit(){
   try{
+    // ★ v3.3.0: Firebase リスナーを必ず解除（重複登録・メモリリーク防止）
+    try{ if(battleRef){ battleRef.off(); } }catch(e){}
+    try{ if(_handVisRef){ _handVisRef.off('value'); _handVisRef=null; } }catch(e){}
+    try{ if(_deckVisRef){ _deckVisRef.off('value'); _deckVisRef=null; } }catch(e){}
+    try{ if(_trashVisRef){ _trashVisRef.off('value'); _trashVisRef=null; } }catch(e){}
+    fbListening = false;
+    FB_SESSION_ID = null;
     if(FB_ROOM){
       // battleStateを削除
       if(battleRef) battleRef.remove();
@@ -4695,6 +4733,7 @@ var MY_LOGIN_ID = '';
 var lobbyRef = fbDB.ref('lobby');
 var _hostRoomListener = null;
 var _guestRoomListener = null;
+var _guestRoomRef = null; // ★ v3.3.0: _guestRoomListener を解除する正しい ref を保持
 var _lobbyListListener = null;
 
 // ── ルームID生成（4文字英数字・紛らわしい文字を除外）
@@ -4714,19 +4753,27 @@ function lobbyStorageSave(loginId, roomId, role){
     localStorage.setItem('OPTCG_SAVE_TS', Date.now().toString());
   }catch(e){}
 }
+// ★ v3.3.0: 再接続時にFB_SESSION_IDを復元するため、別途保存
+function sessionIdStorageSave(sessionId){
+  try{ if(sessionId) localStorage.setItem('OPTCG_SESSION_ID', sessionId); }catch(e){}
+}
+function sessionIdStorageLoad(){
+  try{ return localStorage.getItem('OPTCG_SESSION_ID')||null; }catch(e){ return null; }
+}
 function lobbyStorageClear(){
   try{
     localStorage.removeItem('OPTCG_LOGIN_ID');
     localStorage.removeItem('OPTCG_ROOM_ID');
     localStorage.removeItem('OPTCG_ROLE');
     localStorage.removeItem('OPTCG_SAVE_TS');
+    localStorage.removeItem('OPTCG_SESSION_ID');
   }catch(e){}
 }
 function lobbyStorageLoad(){
   try{
     var ts=parseInt(localStorage.getItem('OPTCG_SAVE_TS')||'0');
     // 1時間以上古ければ無効
-    if(Date.now()-ts > 1*60*60*1000){ lobbyStorageClear(); return null; }
+    if(!ts || Date.now()-ts > 1*60*60*1000){ lobbyStorageClear(); return null; }
     var id=localStorage.getItem('OPTCG_LOGIN_ID');
     var room=localStorage.getItem('OPTCG_ROOM_ID');
     var role=localStorage.getItem('OPTCG_ROLE');
@@ -4865,7 +4912,8 @@ function doGuestJoin(roomId, hostId){
   document.getElementById('guestStatusTxt').textContent='HOST '+hostId+' の確認待ち...';
   document.getElementById('roomList').style.display='none';
   // ホストの確認を待つ
-  if(_guestRoomListener){ roomRef2.off('value',_guestRoomListener); }
+  if(_guestRoomListener && _guestRoomRef){ _guestRoomRef.off('value',_guestRoomListener); }
+  _guestRoomRef = roomRef2;
   _guestRoomListener=function(snap){
     var val=snap.val();
     if(!val){
@@ -4875,7 +4923,7 @@ function doGuestJoin(roomId, hostId){
     }
     if(val.confirmed){
       // ホストが確認した
-      roomRef2.off('value',_guestRoomListener); _guestRoomListener=null;
+      roomRef2.off('value',_guestRoomListener); _guestRoomListener=null; _guestRoomRef=null;
       initFirebaseRefs(roomId);
       MY_ROLE='p2';
       lobbyStorageSave(MY_LOGIN_ID, roomId, 'p2');
@@ -4889,7 +4937,9 @@ function doGuestJoin(roomId, hostId){
 
 // ── ゲスト：キャンセル
 function doGuestCancel(){
-  if(_guestRoomListener){ lobbyRef.off('value',_guestRoomListener); _guestRoomListener=null; }
+  // ★ v3.3.0: _guestRoomListener は roomRef2(=_guestRoomRef) に登録されているため、正しい ref で解除
+  if(_guestRoomListener && _guestRoomRef){ _guestRoomRef.off('value',_guestRoomListener); }
+  _guestRoomListener=null; _guestRoomRef=null;
   if(_lobbyListListener){ lobbyRef.off('value',_lobbyListListener); _lobbyListListener=null; }
   document.getElementById('guestStatus').style.display='none';
   document.getElementById('roomList').style.display='flex';
@@ -4919,6 +4969,16 @@ function checkReconnect(){
     if(snap.val()){
       // ★ 対戦データあり → バトル画面に再接続
       toast('📡 対戦に再接続しました');
+      // ★ v3.3.0: FB_SESSION_ID をlocalStorageから復元（無ければスナップショットから）
+      var savedSid = sessionIdStorageLoad();
+      if(savedSid){
+        FB_SESSION_ID = savedSid;
+      } else if(snap.val() && snap.val().sessionId){
+        FB_SESSION_ID = snap.val().sessionId;
+        sessionIdStorageSave(FB_SESSION_ID);
+      }
+      // ★ v3.3.0: ブラウザを閉じた時の onDisconnect を再登録
+      try{ setupOnDisconnect(); }catch(e){}
       initRoleUI();
       showScr('scrBattle');
       // バトル画面を初期化してFirebase受信を再開
@@ -5060,11 +5120,13 @@ document.addEventListener('DOMContentLoaded',function(){
   });
   bindBtn('exitYes', function(){
     document.getElementById('exitConfirmOverlay').style.display='none';
+    // ★ v3.3.0: Firebaseリスナー解除＋battleState/lobby削除
+    try{ cleanupOnExit(); }catch(e){}
     // 状態リセット
     undoHistory=[];battleTurn=1;battleWho='先';
     testCards=[];dpState={p1:{deck:[],trash:[],hand:[]},p2:{deck:[],trash:[],hand:[]}};
     donInitDone=false;
-    showScr('scrSelect');
+    showScr('scrLogin');
   });
 
   // ═══ CARD DETAIL MODAL ═══
