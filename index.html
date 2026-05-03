@@ -1075,7 +1075,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.1</div>
+    <div class="logo-ver">BATTLE v3.7.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1091,7 +1091,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.1</div>
+    <div class="logo-ver">BATTLE v3.7.2</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1110,7 +1110,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.1</div>
+    <div class="logo-ver">BATTLE v3.7.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1133,7 +1133,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.1</div>
+    <div class="logo-ver">BATTLE v3.7.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1153,7 +1153,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.1</div>
+    <div class="logo-ver">BATTLE v3.7.2</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1486,7 +1486,7 @@ function fbStartListen() {
     <div class="bd-sec">メモ（任意）</div>
     <input type="text" class="bd-input" id="bdDefMemo" placeholder="例: トリガー発動 など" maxlength="40">
     <div class="bd-btns">
-      <button class="bd-btn confirm" id="bdDefResolve" style="background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;">✓ 解決して送信</button>
+      <button class="bd-btn confirm" id="bdDefResolve" style="background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;">⚔ アタック受ける</button>
     </div>
   </div>
 
@@ -3146,7 +3146,7 @@ function arrowDetachListeners(){
 function arrowRender(){
   var svg=arrowEnsureSvg(); if(!svg) return;
   var bf=svg.parentNode;
-  bf.querySelectorAll('.arrow-label').forEach(function(el){ el.remove(); });
+  bf.querySelectorAll('.arrow-label, .battle-arrow-label').forEach(function(el){ el.remove(); }); // ★ v3.7.2: バトルラベルも掃除
   while(svg.firstChild) svg.removeChild(svg.firstChild);
   arrowsState.forEach(function(a){
     var p1=arrowAnchorXY(a.from), p2=arrowAnchorXY(a.to);
@@ -3198,7 +3198,8 @@ function arrowRender(){
     svg.appendChild(path);
   }
   // ★ v3.7.0: バトル進行中アロー（赤・パワー値ラベル付き）
-  if(typeof pendingBattle!=='undefined' && pendingBattle && pendingBattle.fromAnchor && pendingBattle.toAnchor){
+  // ★ v3.7.2: phase==='awaiting_def' の間だけ表示（防御側が「アタック受ける」を押したら消える）
+  if(typeof pendingBattle!=='undefined' && pendingBattle && pendingBattle.phase==='awaiting_def' && pendingBattle.fromAnchor && pendingBattle.toAnchor){
     var bp1=arrowAnchorXY(pendingBattle.fromAnchor), bp2=arrowAnchorXY(pendingBattle.toAnchor);
     if(bp1 && bp2){
       var bmx=(bp1.x+bp2.x)/2, bmy=(bp1.y+bp2.y)/2;
@@ -3228,8 +3229,7 @@ function arrowRender(){
       blab.className='battle-arrow-label';
       blab.style.left=blx+'px'; blab.style.top=bly+'px';
       var pwTxt = pendingBattle.atkPower ? ('⚔ '+pendingBattle.atkPower) : '⚔ ATTACK';
-      var phaseTag = pendingBattle.phase==='awaiting_def' ? '⏳' : '✓';
-      blab.innerHTML='<span>'+phaseTag+' '+pwTxt+'</span>';
+      blab.innerHTML='<span>'+pwTxt+'</span>'; // ★ v3.7.2: awaiting_def 中だけ表示するためフェーズタグ不要
       bf.appendChild(blab);
     }
   }
