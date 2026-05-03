@@ -374,31 +374,47 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 #arrowEditPanel .ae-btn.ae-del{background:linear-gradient(135deg,#7c1d1d,#b91c1c);color:#fff;}
 #arrowEditPanel .ae-btn.ae-ok{background:linear-gradient(135deg,#a17a18,#ffd54a);color:#0a0a0a;}
 /* ★ v3.6.0: バトル宣言モーダル */
-#battleDeclareOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9600;padding:14px;}
+/* ★ v3.8.0: インラインバー方式に刷新（上部に細いバー / 拡大ポップアップ切替） */
+#battleDeclareOverlay{position:fixed;left:0;right:0;top:0;bottom:auto;display:none;justify-content:center;z-index:9600;padding:0;pointer-events:none;background:transparent;transition:background .25s;}
 #battleDeclareOverlay.show{display:flex;}
-.bd-panel{width:100%;max-width:480px;background:linear-gradient(180deg,#1a0d0d,#240f0f);border:2px solid rgba(220,38,38,.55);border-radius:16px;padding:18px 20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.7);}
-.bd-panel.def{background:linear-gradient(180deg,#0d1a24,#0f1a2d);border-color:rgba(34,211,238,.55);}
-.bd-panel.res{background:linear-gradient(180deg,#0d1a24,#101428);border-color:rgba(167,139,250,.55);}
-.bd-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+#battleDeclareOverlay.show.expanded{align-items:flex-start;background:rgba(0,0,0,.2);pointer-events:auto;}
+.bd-panel{width:100%;max-width:560px;background:linear-gradient(180deg,rgba(26,13,13,.92),rgba(36,15,15,.92));border:2px solid rgba(220,38,38,.55);border-bottom-left-radius:14px;border-bottom-right-radius:14px;border-top:none;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:auto;transition:max-height .25s ease;overflow:hidden;}
+.bd-panel.def{background:linear-gradient(180deg,rgba(13,26,36,.92),rgba(15,26,45,.92));border-color:rgba(34,211,238,.55);}
+.bd-panel.res{background:linear-gradient(180deg,rgba(13,26,36,.92),rgba(16,20,40,.92));border-color:rgba(167,139,250,.55);}
+/* インラインバー状態（コンパクト） */
+.bd-panel.bar{padding:6px 8px;max-height:84px;}
+.bd-panel.bar .bd-section-only-expanded{display:none;}
+.bd-bar-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.bd-bar-power{font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:900;letter-spacing:1px;padding:4px 10px;border-radius:6px;background:rgba(239,68,68,.18);color:#ef4444;border:1px solid rgba(239,68,68,.5);flex-shrink:0;display:flex;align-items:center;gap:4px;}
+.bd-panel.def .bd-bar-power{background:rgba(34,211,238,.15);color:#22d3ee;border-color:rgba(34,211,238,.45);}
+.bd-panel.res .bd-bar-power{background:rgba(167,139,250,.15);color:#a78bfa;border-color:rgba(167,139,250,.45);}
+.bd-bar-btn{padding:7px 11px;border-radius:6px;border:1.5px solid rgba(34,211,238,.4);background:rgba(34,211,238,.08);color:#22d3ee;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;flex-shrink:0;line-height:1;}
+.bd-bar-btn.accept{background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;border-color:#22d3ee;font-weight:900;}
+.bd-bar-btn.blocker{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.08);color:#ffd54a;}
+.bd-bar-btn.toggle{margin-left:auto;background:rgba(255,255,255,.06);color:#aab;border-color:rgba(255,255,255,.18);font-size:13px;padding:6px 9px;}
+.bd-bar-btn.confirm-attacker{background:linear-gradient(135deg,#5b21b6,#a78bfa);color:#fff;border-color:#a78bfa;}
+/* 拡大ポップアップ状態 */
+.bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
+.bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
 .bd-panel .bd-title{color:#ef4444;}
 .bd-panel.def .bd-title{color:#22d3ee;}
 .bd-panel.res .bd-title{color:#a78bfa;}
-.bd-close{cursor:pointer;font-size:22px;color:#aab;padding:2px 8px;-webkit-tap-highlight-color:transparent;}
-.bd-sec{font-size:11px;color:#aab;margin:10px 0 4px;letter-spacing:1px;}
+.bd-close{cursor:pointer;font-size:20px;color:#aab;padding:2px 8px;-webkit-tap-highlight-color:transparent;}
+.bd-sec{font-size:11px;color:#aab;margin:8px 0 4px;letter-spacing:1px;}
 .bd-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 11px;color:#fff;font-size:14px;font-family:inherit;box-sizing:border-box;}
 .bd-row{display:flex;gap:8px;}
 .bd-row .bd-input{flex:1;}
-.bd-readonly{background:rgba(0,0,0,.35);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;border:1px solid rgba(255,255,255,.1);}
+.bd-readonly{background:rgba(0,0,0,.35);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.5;border:1px solid rgba(255,255,255,.1);}
 .bd-readonly b{color:#ffd54a;}
-.bd-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-.bd-qbtn{flex:1;min-width:64px;padding:10px 6px;border-radius:8px;border:1.5px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);color:#22d3ee;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.bd-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.bd-qbtn{padding:9px 12px;border-radius:8px;border:1.5px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);color:#22d3ee;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
 .bd-qbtn.blocker{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.08);color:#ffd54a;}
-.bd-resp-list{margin-top:6px;display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;}
+.bd-resp-list{margin-top:4px;display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;}
 .bd-resp-item{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;font-size:13px;}
 .bd-resp-item .bd-rx{cursor:pointer;color:#f87171;font-size:14px;padding-left:8px;-webkit-tap-highlight-color:transparent;}
 .bd-empty{color:#566;font-size:12px;padding:6px 0;font-style:italic;}
-.bd-btns{display:flex;gap:8px;margin-top:14px;}
-.bd-btn{flex:1;padding:12px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.bd-btns{display:flex;gap:8px;margin-top:12px;}
+.bd-btn{flex:1;padding:11px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
 .bd-btn.cancel{background:rgba(255,255,255,.08);color:#aab;}
 .bd-btn.declare{background:linear-gradient(135deg,#7c1d1d,#dc2626);color:#fff;box-shadow:0 3px 12px rgba(220,38,38,.35);}
 .bd-btn.resolve{background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;}
@@ -1075,7 +1091,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.2</div>
+    <div class="logo-ver">BATTLE v3.8.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1091,7 +1107,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.2</div>
+    <div class="logo-ver">BATTLE v3.8.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1110,7 +1126,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.2</div>
+    <div class="logo-ver">BATTLE v3.8.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1133,7 +1149,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.2</div>
+    <div class="logo-ver">BATTLE v3.8.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1153,7 +1169,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.7.2</div>
+    <div class="logo-ver">BATTLE v3.8.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1467,40 +1483,58 @@ function fbStartListen() {
   </div>
 
   <!-- 防御応答パネル（受信側） -->
-  <div class="bd-panel def" id="bdDefendPanel" style="display:none">
-    <div class="bd-title"><span>⚠️ アタックを受けました</span></div>
-    <div class="bd-sec">相手の宣言</div>
-    <div class="bd-readonly" id="bdDefSummary">―</div>
-    <div class="bd-sec">クイック応答</div>
-    <div class="bd-quick">
-      <button class="bd-qbtn" data-cv="1000">+1000</button>
-      <button class="bd-qbtn" data-cv="2000">+2000</button>
-      <button class="bd-qbtn" data-cv="3000">+3000</button>
+  <div class="bd-panel def bar" id="bdDefendPanel" style="display:none">
+    <!-- ★ v3.8.0: インラインバー部分 -->
+    <div class="bd-bar-row bd-bar-only">
+      <span class="bd-bar-power" id="bdDefBarPower">⚔ ―</span>
+      <button class="bd-bar-btn accept" id="bdDefBarAccept">✓ 受ける</button>
+      <button class="bd-bar-btn"        data-cv="1000">+1K</button>
+      <button class="bd-bar-btn"        data-cv="2000">+2K</button>
+      <button class="bd-bar-btn blocker" id="bdDefBarBlocker">🛡 ブロッカー</button>
+      <button class="bd-bar-btn"        id="bdDefBarCustom">+ カスタム</button>
+      <button class="bd-bar-btn toggle"  id="bdDefBarExpand">▼ 拡大</button>
     </div>
-    <div class="bd-quick" style="margin-top:6px">
-      <button class="bd-qbtn" id="bdDefBlocker" style="flex:2">🛡 ブロッカー宣言</button>
-      <button class="bd-qbtn blocker" id="bdDefCustom" style="flex:1">+カスタム</button>
-    </div>
-    <div class="bd-sec">適用済みの応答</div>
-    <div class="bd-resp-list" id="bdDefResps"></div>
-    <div class="bd-sec">メモ（任意）</div>
-    <input type="text" class="bd-input" id="bdDefMemo" placeholder="例: トリガー発動 など" maxlength="40">
-    <div class="bd-btns">
-      <button class="bd-btn confirm" id="bdDefResolve" style="background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;">⚔ アタック受ける</button>
+    <!-- 拡大ポップアップ部分 -->
+    <div class="bd-section-only-expanded">
+      <div class="bd-title"><span>⚠️ アタックを受けました</span><span class="bd-close" id="bdDefCollapse">▲ 折りたたむ</span></div>
+      <div class="bd-sec">攻撃力</div>
+      <div class="bd-readonly" id="bdDefSummary">―</div>
+      <div class="bd-sec">クイック応答</div>
+      <div class="bd-quick">
+        <button class="bd-qbtn accept" id="bdDefAccept" style="background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;border-color:#22d3ee;">✓ 受ける</button>
+        <button class="bd-qbtn" data-cv="1000">+1K</button>
+        <button class="bd-qbtn" data-cv="2000">+2K</button>
+        <button class="bd-qbtn blocker" id="bdDefBlocker">🛡 ブロッカー</button>
+        <button class="bd-qbtn"          id="bdDefCustom">+ カスタム</button>
+      </div>
+      <div class="bd-sec">適用済みの応答</div>
+      <div class="bd-resp-list" id="bdDefResps"></div>
+      <div class="bd-sec">メモ（任意）</div>
+      <input type="text" class="bd-input" id="bdDefMemo" placeholder="例: トリガー発動 など" maxlength="40">
     </div>
   </div>
 
   <!-- 結果通知パネル（攻撃側が応答を確認） -->
-  <div class="bd-panel res" id="bdResultPanel" style="display:none">
-    <div class="bd-title"><span>📡 相手の応答</span></div>
-    <div class="bd-sec">あなたの宣言</div>
-    <div class="bd-readonly" id="bdResMine">―</div>
-    <div class="bd-sec">相手の応答</div>
-    <div class="bd-resp-list" id="bdResResps"></div>
-    <div class="bd-sec" id="bdResMemoSec" style="display:none">相手のメモ</div>
-    <div class="bd-readonly" id="bdResMemo" style="display:none"></div>
-    <div class="bd-btns">
-      <button class="bd-btn confirm" id="bdResOk">✓ 確認</button>
+  <div class="bd-panel res bar" id="bdResultPanel" style="display:none">
+    <!-- ★ v3.8.0: インラインバー部分 -->
+    <div class="bd-bar-row bd-bar-only">
+      <span class="bd-bar-power" id="bdResBarPower">⚔ ―</span>
+      <span id="bdResBarSummary" style="font-size:12px;color:#bcd;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📡 応答待ち...</span>
+      <button class="bd-bar-btn confirm-attacker" id="bdResBarOk">✓ 確認</button>
+      <button class="bd-bar-btn toggle"  id="bdResBarExpand">▼ 拡大</button>
+    </div>
+    <!-- 拡大ポップアップ部分 -->
+    <div class="bd-section-only-expanded">
+      <div class="bd-title"><span>📡 相手の応答</span><span class="bd-close" id="bdResCollapse">▲ 折りたたむ</span></div>
+      <div class="bd-sec">あなたの宣言（攻撃力）</div>
+      <div class="bd-readonly" id="bdResMine">―</div>
+      <div class="bd-sec">相手の応答</div>
+      <div class="bd-resp-list" id="bdResResps"></div>
+      <div class="bd-sec" id="bdResMemoSec" style="display:none">相手のメモ</div>
+      <div class="bd-readonly" id="bdResMemo" style="display:none"></div>
+      <div class="bd-btns">
+        <button class="bd-btn confirm" id="bdResOk">✓ 確認</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3318,22 +3352,39 @@ var _bdPendingTo = null;
 
 function _bdEl(id){ return document.getElementById(id); }
 function _bdShowOverlay(){ _bdEl('battleDeclareOverlay').classList.add('show'); }
-function _bdHideOverlay(){ _bdEl('battleDeclareOverlay').classList.remove('show'); }
+function _bdHideOverlay(){
+  var ov=_bdEl('battleDeclareOverlay');
+  ov.classList.remove('show');
+  ov.classList.remove('expanded');
+}
 function _bdShowOnly(panelId){
   ['bdAttackPanel','bdDefendPanel','bdResultPanel'].forEach(function(p){
     var el=_bdEl(p); if(el) el.style.display = (p===panelId)?'block':'none';
   });
 }
+// ★ v3.8.0: バー/拡大トグル（パネル単体に bar / expanded クラスを付け替え）
+function bdSetExpanded(panelId, expanded){
+  var p=_bdEl(panelId); if(!p) return;
+  if(expanded){
+    p.classList.remove('bar');
+    p.classList.add('expanded');
+    _bdEl('battleDeclareOverlay').classList.add('expanded');
+  }else{
+    p.classList.remove('expanded');
+    p.classList.add('bar');
+    _bdEl('battleDeclareOverlay').classList.remove('expanded');
+  }
+}
 function _bdSummaryText(b){
+  // ★ v3.8.0: 攻撃力のみのシンプル表示
   if(!b) return '―';
   var byLabel = b.atkRole==='p1' ? 'P1' : 'P2';
   var pw = b.atkPower ? '<b>'+b.atkPower+'</b>' : '―';
-  // ★ v3.7.0: anchor優先、フォールバックでテキスト入力
-  var nm = bdAnchorLabel(b.fromAnchor) || b.atkName || '攻撃カード';
-  var tg = bdAnchorLabel(b.toAnchor)   || b.atkTarget || '対象';
-  if(b.atkName && bdAnchorLabel(b.fromAnchor)) nm += ' ('+b.atkName+')';
-  if(b.atkTarget && bdAnchorLabel(b.toAnchor)) tg += ' ('+b.atkTarget+')';
-  return byLabel+': <b>'+nm+'</b> ('+pw+') → <b>'+tg+'</b>';
+  return byLabel+' 攻撃力 '+pw;
+}
+function _bdPowerBadge(b){
+  if(!b || !b.atkPower) return '⚔ ―';
+  return '⚔ '+b.atkPower;
 }
 function _bdRespLabel(r){
   if(r.type==='counter') return '🛡 カウンター +'+r.value;
@@ -3515,8 +3566,10 @@ var _bdDefDraft = null; // {responses:[], memo:''}
 function bdOpenDefenseModal(b){
   _bdDefDraft = { responses:(b.responses||[]).slice(), memo: b.memo||'' };
   _bdEl('bdDefSummary').innerHTML = _bdSummaryText(b);
+  _bdEl('bdDefBarPower').textContent = _bdPowerBadge(b);
   _bdEl('bdDefMemo').value = _bdDefDraft.memo;
   bdRenderDefResponses();
+  bdSetExpanded('bdDefendPanel', false); // ★ v3.8.0: 起動時はバー
   _bdShowOnly('bdDefendPanel');
   _bdShowOverlay();
   if(navigator.vibrate){ try{ navigator.vibrate([60,40,60]); }catch(e){} }
@@ -3573,6 +3626,22 @@ function bdSubmitDefense(){
 // ── 結果通知モーダル（P1側）
 function bdOpenResultModal(b){
   _bdEl('bdResMine').innerHTML = _bdSummaryText(b);
+  _bdEl('bdResBarPower').textContent = _bdPowerBadge(b);
+  // ★ v3.8.0: バー部分のサマリーテキスト
+  var responsesSummary = '';
+  if(b.responses && b.responses.length){
+    var counters = b.responses.filter(function(r){return r.type==='counter';}).map(function(r){return '+'+r.value;}).join(' ');
+    var hasBlocker = b.responses.some(function(r){return r.type==='blocker';});
+    var parts = [];
+    if(counters) parts.push('カウンター '+counters);
+    if(hasBlocker) parts.push('🛡 ブロッカー');
+    responsesSummary = parts.join(' / ');
+  } else {
+    responsesSummary = '防御なし';
+  }
+  if(b.memo) responsesSummary += ' (📝 '+b.memo+')';
+  _bdEl('bdResBarSummary').textContent = '🛡 '+responsesSummary;
+
   var box=_bdEl('bdResResps');
   box.innerHTML='';
   if(!b.responses || !b.responses.length){
@@ -3593,6 +3662,7 @@ function bdOpenResultModal(b){
     _bdEl('bdResMemoSec').style.display='none';
     _bdEl('bdResMemo').style.display='none';
   }
+  bdSetExpanded('bdResultPanel', false); // ★ v3.8.0: 起動時はバー
   _bdShowOnly('bdResultPanel');
   _bdShowOverlay();
 }
@@ -3612,11 +3682,14 @@ function bdReshowCurrent(){
     if(MY_ROLE && MY_ROLE !== pendingBattle.atkRole){
       bdOpenDefenseModal(pendingBattle);
     }else{
-      // 攻撃側は応答待ち画面（簡易）
+      // 攻撃側は応答待ち（バーで表示）
       _bdEl('bdResMine').innerHTML = _bdSummaryText(pendingBattle);
+      _bdEl('bdResBarPower').textContent = _bdPowerBadge(pendingBattle);
+      _bdEl('bdResBarSummary').textContent = '📡 相手の応答待ち...';
       _bdEl('bdResResps').innerHTML = '<div class="bd-empty">📡 相手の応答待ち...</div>';
       _bdEl('bdResMemoSec').style.display='none';
       _bdEl('bdResMemo').style.display='none';
+      bdSetExpanded('bdResultPanel', false);
       _bdShowOnly('bdResultPanel');
       _bdShowOverlay();
     }
@@ -3675,22 +3748,32 @@ function bdInitButtons(){
     ['bdAtkDeclare', bdSubmitAttackDeclare],
     ['bdDefBlocker', bdAddBlocker],
     ['bdDefCustom', bdAddCustom],
-    ['bdDefResolve', bdSubmitDefense],
-    ['bdResOk', bdConfirmResult]
+    ['bdResOk', bdConfirmResult],
+    // ★ v3.8.0: 防御バーのボタン
+    ['bdDefBarAccept',  bdSubmitDefense],
+    ['bdDefBarBlocker', bdAddBlocker],
+    ['bdDefBarCustom',  bdAddCustom],
+    ['bdDefBarExpand',  function(){ bdSetExpanded('bdDefendPanel', true); }],
+    ['bdDefCollapse',   function(){ bdSetExpanded('bdDefendPanel', false); }],
+    ['bdDefAccept',     bdSubmitDefense],
+    // 結果バーのボタン
+    ['bdResBarOk',      bdConfirmResult],
+    ['bdResBarExpand',  function(){ bdSetExpanded('bdResultPanel', true); }],
+    ['bdResCollapse',   function(){ bdSetExpanded('bdResultPanel', false); }]
   ];
   pairs.forEach(function(p){
     var el=_bdEl(p[0]); if(el && !el._bdBound){ el._bdBound=true; el.addEventListener('click', p[1]); }
   });
+  // ★ v3.8.0: 拡大ポップアップ内のクイック応答ボタン
   document.querySelectorAll('#bdDefendPanel .bd-qbtn[data-cv]').forEach(function(b){
     if(b._bdBound) return; b._bdBound=true;
     b.addEventListener('click', function(){ bdAddCounter(parseInt(b.dataset.cv)); });
   });
-  // ターンバーの ⚔ ボタン: モーダルが進行中なら復元、そうでなければ宣言開始
-  var bdBtn=_bdEl('btnBattleDeclare');
-  if(bdBtn && !bdBtn._bdBound){
-    bdBtn._bdBound = true;
-    // bindBtn は後段で登録されるが、念のためここでも click ハンドラを直接登録
-  }
+  // ★ v3.8.0: バー部分のクイック応答ボタン
+  document.querySelectorAll('#bdDefendPanel .bd-bar-btn[data-cv]').forEach(function(b){
+    if(b._bdBound) return; b._bdBound=true;
+    b.addEventListener('click', function(){ bdAddCounter(parseInt(b.dataset.cv)); });
+  });
 }
 
 // ★ v3.4.0: 直前のターン状態を保持（オーバーレイ発火判定用）
