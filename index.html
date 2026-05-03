@@ -406,6 +406,19 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 /* 防御側を呼ぶ通知バッジ（背景表示用） */
 @keyframes bdPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.55);}50%{box-shadow:0 0 0 8px rgba(34,211,238,0);}}
 .tbn.battle-pending{animation:bdPulse 1.4s ease-in-out infinite;color:#22d3ee!important;}
+/* ★ v3.7.0: バトル宣言のドラッグモード */
+.tbn.battle-active{background:rgba(239,68,68,.25)!important;color:#ef4444!important;outline:1.5px solid rgba(239,68,68,.7);}
+body.battle-mode #scrBattle .bf{cursor:crosshair;}
+body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzone,body.battle-mode .leader-zone,body.battle-mode .stage-zone,body.battle-mode .don-zone,body.battle-mode .free-zone,body.battle-mode .life-stack,body.battle-mode .deck-zone{cursor:crosshair!important;}
+/* バトル進行中のアロー（赤） */
+#arrowSvg .battle-arrow{fill:none;stroke:#ef4444;stroke-width:4;stroke-linecap:round;stroke-dasharray:8 4;filter:drop-shadow(0 0 4px rgba(239,68,68,.7));}
+#arrowSvg .battle-arrow-head{filter:drop-shadow(0 0 4px rgba(239,68,68,.7));}
+.battle-arrow-label{position:absolute;transform:translate(-50%,-50%);background:rgba(0,0,0,.92);border:2px solid #ef4444;border-radius:8px;padding:4px 10px;font-family:'Bebas Neue','Noto Sans JP',sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;color:#ef4444;white-space:nowrap;pointer-events:none;z-index:82;display:flex;align-items:center;gap:6px;box-shadow:0 0 12px rgba(239,68,68,.5);}
+/* 攻撃宣言モーダル：ドラッグ起点のシンプル表示（攻撃力のみ） */
+#bdAttackPanel.simple .bd-row-name,#bdAttackPanel.simple .bd-row-target{display:none;}
+.bd-route{background:rgba(0,0,0,.4);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.5;color:#fff;text-align:center;}
+.bd-route .bd-route-arrow{color:#ef4444;font-weight:900;margin:0 6px;}
+.bd-route b{color:#ffd54a;}
 #p1DonZone,#p2DonZone{cursor:grab;}
 #p1DonZone:active,#p2DonZone:active{cursor:grabbing;}
 .active-dons{display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;width:100%;height:100%;padding:2px;box-sizing:border-box;}
@@ -1062,7 +1075,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.6.0</div>
+    <div class="logo-ver">BATTLE v3.7.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1078,7 +1091,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.6.0</div>
+    <div class="logo-ver">BATTLE v3.7.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1097,7 +1110,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.6.0</div>
+    <div class="logo-ver">BATTLE v3.7.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1120,7 +1133,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.6.0</div>
+    <div class="logo-ver">BATTLE v3.7.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1140,7 +1153,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.6.0</div>
+    <div class="logo-ver">BATTLE v3.7.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1434,12 +1447,19 @@ function fbStartListen() {
 <div id="battleDeclareOverlay">
   <div class="bd-panel" id="bdAttackPanel">
     <div class="bd-title"><span>⚔ アタック宣言</span><span class="bd-close" id="bdAtkClose">✕</span></div>
-    <div class="bd-sec">攻撃カード名</div>
-    <input type="text" class="bd-input" id="bdAtkName" placeholder="例: シュラ / リーダー" maxlength="30">
+    <!-- ★ v3.7.0: ドラッグで設定したルート表示 -->
+    <div class="bd-sec" id="bdAtkRouteSec" style="display:none">アタック</div>
+    <div class="bd-route" id="bdAtkRoute" style="display:none">―</div>
+    <div class="bd-row-name">
+      <div class="bd-sec">攻撃カード名（任意）</div>
+      <input type="text" class="bd-input" id="bdAtkName" placeholder="例: シュラ / リーダー" maxlength="30">
+    </div>
     <div class="bd-sec">攻撃力</div>
     <input type="text" class="bd-input" id="bdAtkPower" placeholder="例: 5000" inputmode="numeric" maxlength="6">
-    <div class="bd-sec">対象</div>
-    <input type="text" class="bd-input" id="bdAtkTarget" placeholder="例: リーダー / モンキー・D・ルフィ" maxlength="30">
+    <div class="bd-row-target">
+      <div class="bd-sec">対象（任意）</div>
+      <input type="text" class="bd-input" id="bdAtkTarget" placeholder="例: リーダー / モンキー・D・ルフィ" maxlength="30">
+    </div>
     <div class="bd-btns">
       <button class="bd-btn cancel" id="bdAtkCancel">キャンセル</button>
       <button class="bd-btn declare" id="bdAtkDeclare">⚔ 宣言</button>
@@ -3177,6 +3197,50 @@ function arrowRender(){
     path.setAttribute('class','arrow-draft');
     svg.appendChild(path);
   }
+  // ★ v3.7.0: バトル進行中アロー（赤・パワー値ラベル付き）
+  if(typeof pendingBattle!=='undefined' && pendingBattle && pendingBattle.fromAnchor && pendingBattle.toAnchor){
+    var bp1=arrowAnchorXY(pendingBattle.fromAnchor), bp2=arrowAnchorXY(pendingBattle.toAnchor);
+    if(bp1 && bp2){
+      var bmx=(bp1.x+bp2.x)/2, bmy=(bp1.y+bp2.y)/2;
+      var bdx=bp2.x-bp1.x, bdy=bp2.y-bp1.y;
+      var blen=Math.sqrt(bdx*bdx+bdy*bdy)||1;
+      var bnx=-bdy/blen, bny=bdx/blen;
+      var bbow=Math.min(48, blen*0.20);
+      var bcx=bmx+bnx*bbow, bcy=bmy+bny*bbow;
+      var bd='M '+bp1.x+' '+bp1.y+' Q '+bcx+' '+bcy+' '+bp2.x+' '+bp2.y;
+      var bpath=document.createElementNS('http://www.w3.org/2000/svg','path');
+      bpath.setAttribute('d',bd);
+      bpath.setAttribute('class','battle-arrow');
+      svg.appendChild(bpath);
+      // 矢じり
+      var bang=Math.atan2(bp2.y-bcy, bp2.x-bcx);
+      var bah=14;
+      var bax1=bp2.x-bah*Math.cos(bang-Math.PI/6), bay1=bp2.y-bah*Math.sin(bang-Math.PI/6);
+      var bax2=bp2.x-bah*Math.cos(bang+Math.PI/6), bay2=bp2.y-bah*Math.sin(bang+Math.PI/6);
+      var bhead=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      bhead.setAttribute('points', bp2.x+','+bp2.y+' '+bax1+','+bay1+' '+bax2+','+bay2);
+      bhead.setAttribute('class','battle-arrow-head');
+      bhead.setAttribute('fill','#ef4444');
+      svg.appendChild(bhead);
+      // パワーラベル（中点）
+      var blx=(bp1.x+2*bcx+bp2.x)/4, bly=(bp1.y+2*bcy+bp2.y)/4;
+      var blab=document.createElement('div');
+      blab.className='battle-arrow-label';
+      blab.style.left=blx+'px'; blab.style.top=bly+'px';
+      var pwTxt = pendingBattle.atkPower ? ('⚔ '+pendingBattle.atkPower) : '⚔ ATTACK';
+      var phaseTag = pendingBattle.phase==='awaiting_def' ? '⏳' : '✓';
+      blab.innerHTML='<span>'+phaseTag+' '+pwTxt+'</span>';
+      bf.appendChild(blab);
+    }
+  }
+  // ★ v3.7.0: バトル宣言ドラフト（攻撃モード中のドラッグプレビュー）
+  if(typeof battleDraft!=='undefined' && battleDraft && battleDraft.fromXY){
+    var dp1=battleDraft.fromXY, dp2=battleDraft.lastXY||dp1;
+    var dpath=document.createElementNS('http://www.w3.org/2000/svg','path');
+    dpath.setAttribute('d', 'M '+dp1.x+' '+dp1.y+' L '+dp2.x+' '+dp2.y);
+    dpath.setAttribute('class','battle-arrow');
+    svg.appendChild(dpath);
+  }
 }
 function arrowDelete(id){
   var i=arrowsState.findIndex(function(a){return a.id===id;});
@@ -3246,6 +3310,11 @@ window.addEventListener('resize', function(){ try{ arrowRender(); }catch(e){} })
 // phase: 'awaiting_def'(P2応答待ち) | 'resolving'(P1確認待ち)
 var pendingBattle = null;
 var _bdSeenId = null; // 相手送信の宣言を再表示しないためのID記録
+// ★ v3.7.0: ドラッグでアタック宣言
+var battleMode = false;
+var battleDraft = null; // {fromAnchor, fromXY, lastXY}
+var _bdPendingFrom = null;
+var _bdPendingTo = null;
 
 function _bdEl(id){ return document.getElementById(id); }
 function _bdShowOverlay(){ _bdEl('battleDeclareOverlay').classList.add('show'); }
@@ -3259,8 +3328,11 @@ function _bdSummaryText(b){
   if(!b) return '―';
   var byLabel = b.atkRole==='p1' ? 'P1' : 'P2';
   var pw = b.atkPower ? '<b>'+b.atkPower+'</b>' : '―';
-  var nm = b.atkName || '攻撃カード';
-  var tg = b.atkTarget || '対象';
+  // ★ v3.7.0: anchor優先、フォールバックでテキスト入力
+  var nm = bdAnchorLabel(b.fromAnchor) || b.atkName || '攻撃カード';
+  var tg = bdAnchorLabel(b.toAnchor)   || b.atkTarget || '対象';
+  if(b.atkName && bdAnchorLabel(b.fromAnchor)) nm += ' ('+b.atkName+')';
+  if(b.atkTarget && bdAnchorLabel(b.toAnchor)) tg += ' ('+b.atkTarget+')';
   return byLabel+': <b>'+nm+'</b> ('+pw+') → <b>'+tg+'</b>';
 }
 function _bdRespLabel(r){
@@ -3268,11 +3340,33 @@ function _bdRespLabel(r){
   if(r.type==='blocker') return '🛡 ブロッカー宣言';
   return r.label || r.type;
 }
+// ★ v3.7.0: anchor → 表示用ラベル
+function bdAnchorLabel(a){
+  if(!a||!a.zone) return '';
+  if(a.zone==='cslot') return (a.player==='p1'?'P1':'P2')+'キャラ#'+(parseInt(a.idx)+1);
+  if(a.zone==='trash') return (a.player==='p1'?'P1':'P2')+'トラッシュ';
+  var map = {
+    'p1LeaderZone':'P1リーダー', 'p2LeaderZone':'P2リーダー',
+    'p1StageZone':'P1ステージ', 'p2StageZone':'P2ステージ',
+    'p1DonZone':'P1 DON', 'p2DonZone':'P2 DON',
+    'p1ActiveZone':'P1アクティブ', 'p2ActiveZone':'P2アクティブ',
+    'p1RestZone':'P1レスト', 'p2RestZone':'P2レスト',
+    'p1FreeZone':'P1フリー', 'p2FreeZone':'P2フリー',
+    'p1DeckZone':'P1デッキ', 'p2DeckZone':'P2デッキ',
+    'p1LifeStack':'P1ライフ', 'p2LifeStack':'P2ライフ',
+    'p1HandArea':'P1手札', 'p2HandArea':'P2手札'
+  };
+  return map[a.zone] || a.zone;
+}
 
-// ── 攻撃宣言モーダル（P1側）
+// ── 攻撃宣言モーダル（手動入力モード — 後方互換）
 function bdOpenAttackModal(){
   // すでに進行中のバトルがあれば中断
   if(pendingBattle){ toast('⚠️ 進行中のバトルがあります'); bdReshowCurrent(); return; }
+  _bdPendingFrom = null; _bdPendingTo = null;
+  var panel = _bdEl('bdAttackPanel'); if(panel) panel.classList.remove('simple');
+  _bdEl('bdAtkRouteSec').style.display='none';
+  _bdEl('bdAtkRoute').style.display='none';
   _bdEl('bdAtkName').value='';
   _bdEl('bdAtkPower').value='';
   _bdEl('bdAtkTarget').value='';
@@ -3280,22 +3374,137 @@ function bdOpenAttackModal(){
   _bdShowOverlay();
   setTimeout(function(){ try{ _bdEl('bdAtkName').focus(); }catch(e){} }, 100);
 }
+// ★ v3.7.0: ドラッグ起点で開く簡易モーダル（攻撃力のみ入力）
+function bdOpenAttackModalSimple(fromAnchor, toAnchor){
+  if(pendingBattle){ toast('⚠️ 進行中のバトルがあります'); bdReshowCurrent(); return; }
+  _bdPendingFrom = fromAnchor;
+  _bdPendingTo   = toAnchor;
+  var panel = _bdEl('bdAttackPanel'); if(panel) panel.classList.add('simple');
+  // ルート表示
+  var route = _bdEl('bdAtkRoute');
+  var sec   = _bdEl('bdAtkRouteSec');
+  if(route && sec){
+    sec.style.display='';
+    route.style.display='';
+    route.innerHTML='<b>'+bdAnchorLabel(fromAnchor)+'</b><span class="bd-route-arrow">⚔→</span><b>'+bdAnchorLabel(toAnchor)+'</b>';
+  }
+  _bdEl('bdAtkName').value='';
+  _bdEl('bdAtkPower').value='';
+  _bdEl('bdAtkTarget').value='';
+  _bdShowOnly('bdAttackPanel');
+  _bdShowOverlay();
+  setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); }catch(e){} }, 100);
+}
+// ── バトルモード切替（ドラッグでアタック宣言）
+function bdToggleMode(){
+  if(pendingBattle){ toast('⚠️ 進行中のバトルがあります'); bdReshowCurrent(); return; }
+  if(!isMyTurn()){ toast('⛔ 自分のターンに宣言してください'); return; }
+  battleMode = !battleMode;
+  document.body.classList.toggle('battle-mode', battleMode);
+  var btn = _bdEl('btnBattleDeclare');
+  if(btn) btn.classList.toggle('battle-active', battleMode);
+  if(battleMode){
+    // 既存のアローモードをOFF
+    if(typeof arrowMode!=='undefined' && arrowMode){
+      try{ arrowToggleMode(); }catch(e){}
+    }
+    toast('⚔ アタックモード ON / 攻撃元から対象へドラッグ');
+    bdAttachListeners();
+  }else{
+    battleDraft = null;
+    bdDetachListeners();
+    try{ arrowRender(); }catch(e){}
+    toast('⚔ アタックモード OFF');
+  }
+}
+function bdExitMode(){
+  if(!battleMode) return;
+  battleMode = false;
+  document.body.classList.remove('battle-mode');
+  var btn = _bdEl('btnBattleDeclare');
+  if(btn) btn.classList.remove('battle-active');
+  battleDraft = null;
+  bdDetachListeners();
+  try{ arrowRender(); }catch(e){}
+}
+function bdOnStart(e){
+  if(!battleMode) return;
+  var p = _arrowGetXY(e);
+  var anchor = arrowAnchorAtPoint(p.x, p.y);
+  if(!anchor) return;
+  e.preventDefault(); e.stopPropagation();
+  var local = arrowClientToLocal(p.x, p.y);
+  battleDraft = {fromAnchor:anchor, fromXY: arrowAnchorXY(anchor)||local, lastXY: local};
+  arrowRender();
+}
+function bdOnMove(e){
+  if(!battleMode || !battleDraft) return;
+  e.preventDefault();
+  var p = _arrowGetXY(e);
+  battleDraft.lastXY = arrowClientToLocal(p.x, p.y);
+  arrowRender();
+}
+function bdOnEnd(e){
+  if(!battleMode || !battleDraft) return;
+  var p = _arrowGetXY(e);
+  var toAnchor = arrowAnchorAtPoint(p.x, p.y);
+  var fromAnchor = battleDraft.fromAnchor;
+  battleDraft = null;
+  arrowRender();
+  if(!toAnchor) return;
+  if(JSON.stringify(toAnchor)===JSON.stringify(fromAnchor)) return;
+  bdExitMode();
+  bdOpenAttackModalSimple(fromAnchor, toAnchor);
+}
+var _bdListenersAttached = false;
+function bdAttachListeners(){
+  if(_bdListenersAttached) return;
+  var bf = document.querySelector('#scrBattle .bf'); if(!bf) return;
+  bf.addEventListener('touchstart', bdOnStart, {passive:false});
+  bf.addEventListener('touchmove',  bdOnMove,  {passive:false});
+  bf.addEventListener('touchend',   bdOnEnd,   {passive:false});
+  bf.addEventListener('mousedown',  bdOnStart);
+  bf.addEventListener('mousemove',  bdOnMove);
+  bf.addEventListener('mouseup',    bdOnEnd);
+  _bdListenersAttached = true;
+}
+function bdDetachListeners(){
+  if(!_bdListenersAttached) return;
+  var bf = document.querySelector('#scrBattle .bf'); if(!bf) return;
+  bf.removeEventListener('touchstart', bdOnStart);
+  bf.removeEventListener('touchmove',  bdOnMove);
+  bf.removeEventListener('touchend',   bdOnEnd);
+  bf.removeEventListener('mousedown',  bdOnStart);
+  bf.removeEventListener('mousemove',  bdOnMove);
+  bf.removeEventListener('mouseup',    bdOnEnd);
+  _bdListenersAttached = false;
+}
 function bdSubmitAttackDeclare(){
   var nm=(_bdEl('bdAtkName').value||'').trim().slice(0,30);
   var pw=(_bdEl('bdAtkPower').value||'').trim().slice(0,6);
   var tg=(_bdEl('bdAtkTarget').value||'').trim().slice(0,30);
-  if(!nm && !pw && !tg){ toast('内容を入力してください'); return; }
+  // ★ v3.7.0: アンカーがあれば nm/tg は省略可、攻撃力だけは必要
+  var hasAnchors = !!(_bdPendingFrom && _bdPendingTo);
+  if(hasAnchors){
+    if(!pw){ toast('攻撃力を入力してください'); return; }
+  }else{
+    if(!nm && !pw && !tg){ toast('内容を入力してください'); return; }
+  }
   saveState();
   pendingBattle = {
     id:'bd_'+Date.now()+'_'+Math.floor(Math.random()*1000),
     phase:'awaiting_def',
     atkRole: MY_ROLE||'p1',
     atkName: nm, atkPower: pw, atkTarget: tg,
+    fromAnchor: _bdPendingFrom||null, // ★ v3.7.0
+    toAnchor:   _bdPendingTo||null,   // ★ v3.7.0
     responses: [], memo:'',
     ts: Date.now()
   };
+  _bdPendingFrom = null; _bdPendingTo = null;
   _bdSeenId = pendingBattle.id; // 自分の宣言は再表示しない
   _bdHideOverlay();
+  try{ arrowRender(); }catch(e){} // 攻撃側にも赤アロー表示
   toast('⚔ アタック宣言を送信しました');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
@@ -3392,6 +3601,7 @@ function bdConfirmResult(){
   pendingBattle = null;
   _bdSeenId = null;
   _bdHideOverlay();
+  try{ arrowRender(); }catch(e){} // ★ v3.7.0: 赤アロー消去
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
 }
@@ -3453,6 +3663,8 @@ function bdOnFirebaseSync(snap){
       var bb=_bdEl('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending');
     }
   }
+  // ★ v3.7.0: 赤アローの再描画
+  try{ arrowRender(); }catch(e){}
 }
 
 // ── 初期化（DOMContentLoaded で呼ぶ）
@@ -3652,6 +3864,9 @@ function cleanupOnExit(){
       pendingBattle=null; _bdSeenId=null; _bdDefDraft=null;
       _bdHideOverlay();
       var bb=document.getElementById('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending');
+      // ★ v3.7.0: バトルモード解除
+      try{ bdExitMode(); }catch(_){}
+      _bdPendingFrom=null; _bdPendingTo=null;
     }catch(e){}
     if(FB_ROOM){
       // battleStateを削除
@@ -5858,11 +6073,10 @@ document.addEventListener('DOMContentLoaded',function(){
   // ★ v3.5.0: アロー注釈モード
   bindBtn('btnArrow', arrowToggleMode);
   try{ arrowInitButtons(); }catch(e){}
-  // ★ v3.6.0: バトル宣言
+  // ★ v3.7.0: バトル宣言（ドラッグモードを切替）
   bindBtn('btnBattleDeclare', function(){
     if(pendingBattle){ bdReshowCurrent(); return; }
-    if(!isMyTurn()){ toast('⛔ 自分のターンに宣言してください'); return; }
-    bdOpenAttackModal();
+    bdToggleMode();
   });
   try{ bdInitButtons(); }catch(e){}
 
