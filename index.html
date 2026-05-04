@@ -33,7 +33,11 @@
   --r:13px;--hh:52px;
   --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
 }
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans JP',sans-serif;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans JP',sans-serif;overflow:hidden;touch-action:manipulation;-webkit-touch-callout:none;}
+/* ★ v3.10.0: ダブルタップでズームしないように全要素で touch-action: manipulation */
+*{touch-action:manipulation;}
+/* テキスト入力欄ではユーザーの選択を許可 */
+input,textarea{touch-action:auto;}
 
 /* SCREENS */
 .scr{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg)}
@@ -1097,7 +1101,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.9.0</div>
+    <div class="logo-ver">BATTLE v3.10.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1113,7 +1117,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.9.0</div>
+    <div class="logo-ver">BATTLE v3.10.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1132,7 +1136,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.9.0</div>
+    <div class="logo-ver">BATTLE v3.10.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1155,7 +1159,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.9.0</div>
+    <div class="logo-ver">BATTLE v3.10.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1175,7 +1179,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.9.0</div>
+    <div class="logo-ver">BATTLE v3.10.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1490,11 +1494,9 @@ function fbStartListen() {
     </div>
     <div class="bd-sec">攻撃力</div>
     <div class="bd-stepper">
-      <button class="bd-step-btn"       data-d="-1000">-1K</button>
-      <button class="bd-step-btn minor" data-d="-100">-100</button>
-      <input type="text" class="bd-step-val" id="bdAtkPower" value="0" inputmode="numeric" maxlength="6">
-      <button class="bd-step-btn minor" data-d="100">+100</button>
-      <button class="bd-step-btn"       data-d="1000">+1K</button>
+      <button class="bd-step-btn" data-d="-1000">-1K</button>
+      <input type="text" class="bd-step-val" id="bdAtkPower" value="5000" inputmode="numeric" maxlength="6">
+      <button class="bd-step-btn" data-d="1000">+1K</button>
     </div>
     <div class="bd-row-target">
       <div class="bd-sec">対象（任意）</div>
@@ -1511,6 +1513,8 @@ function fbStartListen() {
     <!-- ★ v3.8.0: インラインバー部分 -->
     <div class="bd-bar-row bd-bar-only">
       <span class="bd-bar-power" id="bdDefBarPower">⚔ ―</span>
+      <!-- ★ v3.10.0: カウンター合計を赤字で表示 -->
+      <span id="bdDefBarCounter" style="display:none;font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:900;color:#ef4444;letter-spacing:1px;padding:4px 8px;border-radius:6px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);"></span>
       <button class="bd-bar-btn accept" id="bdDefBarAccept">✓ 受ける</button>
       <button class="bd-bar-btn"        data-cv="1000">+1K</button>
       <button class="bd-bar-btn"        data-cv="2000">+2K</button>
@@ -3059,26 +3063,39 @@ function isMyTurn(){
   return true;
 }
 
-// ══════ ★ v3.9.0: バイブレーション制御（設定でON/OFF切替） ══════
+// ══════ ★ v3.9.0/v3.10.0: バイブレーション制御 ══════
+// ★ v3.10.0: バイブ機能はコードで一旦OFF（後の版で復活予定）
+var _VIBRATE_HARD_OFF = true;
 function safeVibrate(pattern){
+  if(_VIBRATE_HARD_OFF) return; // ★ v3.10.0: 強制OFF
   try{
     var enabled = localStorage.getItem('OPTCG_VIBRATE_ENABLED');
-    if(enabled === 'off') return; // 明示的にOFFのときだけスキップ（既定はON）
+    if(enabled === 'off') return;
     if(navigator.vibrate) navigator.vibrate(pattern);
   }catch(e){}
 }
 function vibrateIsEnabled(){
+  if(_VIBRATE_HARD_OFF) return false;
   try{ return localStorage.getItem('OPTCG_VIBRATE_ENABLED') !== 'off'; }catch(e){ return true; }
 }
 function vibrateSetEnabled(on){
+  if(_VIBRATE_HARD_OFF) on = false; // 強制OFF時はトグル無効
   try{ localStorage.setItem('OPTCG_VIBRATE_ENABLED', on?'on':'off'); }catch(e){}
-  // 設定パネルのボタン表示を更新
   var btn = document.getElementById('btnVibrateToggle');
   if(btn){
-    btn.textContent = on ? '🔔 バイブ ON' : '🔕 バイブ OFF';
-    btn.style.background = on ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.08)';
-    btn.style.color = on ? '#22c55e' : '#aab';
-    btn.style.borderColor = on ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.18)';
+    if(_VIBRATE_HARD_OFF){
+      btn.textContent = '🔕 バイブ 無効（次版で対応予定）';
+      btn.style.background = 'rgba(120,120,120,.15)';
+      btn.style.color = '#888';
+      btn.style.borderColor = 'rgba(120,120,120,.4)';
+      btn.disabled = true;
+      btn.style.cursor = 'not-allowed';
+    }else{
+      btn.textContent = on ? '🔔 バイブ ON' : '🔕 バイブ OFF';
+      btn.style.background = on ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.08)';
+      btn.style.color = on ? '#22c55e' : '#aab';
+      btn.style.borderColor = on ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.18)';
+    }
   }
 }
 
@@ -3449,7 +3466,7 @@ function _bdRespLabel(r){
   if(r.type==='blocker') return '🛡 ブロッカー宣言';
   return r.label || r.type;
 }
-// ★ v3.9.0: バトル解決後のサマリーテキスト
+// ★ v3.9.0 / v3.10.0: バトル解決後のサマリーテキスト
 function _bdMakeSummary(b){
   if(!b) return '';
   var role = b.atkRole==='p1' ? 'P1' : 'P2';
@@ -3460,14 +3477,32 @@ function _bdMakeSummary(b){
   var counters = responses.filter(function(r){ return r.type==='counter'; });
   var totalCounter = counters.reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
   var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
-  var defParts = [];
-  counters.forEach(function(c){ defParts.push('+'+c.value); });
-  if(hasBlocker) defParts.push('🛡 ブロッカー');
-  var def = defParts.length ? '🛡 '+defParts.join(' ') : '防御なし';
-  var summary = atk + ' → ' + def;
-  if(totalCounter>0) summary += ' (合計+'+totalCounter+')';
+  // ★ v3.10.0: 表記変更
+  //   応答なし → アタック成功
+  //   カウンターあり → カウンター処理 +<合計>
+  //   ブロックあり → ブロック処理
+  var resultParts = [];
+  if(hasBlocker) resultParts.push('🛡 ブロック処理');
+  if(totalCounter>0) resultParts.push('🛡 カウンター処理 +'+totalCounter);
+  var resultText = resultParts.length ? resultParts.join(' / ') : '✅ アタック成功';
+  var summary = atk + ' → ' + resultText;
   if(b.memo) summary += ' (📝 '+b.memo+')';
   return summary;
+}
+// ★ v3.10.0: 結果バー用の短いサマリー
+function _bdMakeBarSummary(b){
+  if(!b) return '―';
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  var counters = responses.filter(function(r){ return r.type==='counter'; });
+  var totalCounter = counters.reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
+  var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
+  var parts = [];
+  if(hasBlocker) parts.push('🛡 ブロック処理');
+  if(totalCounter>0) parts.push('🛡 カウンター処理 +'+totalCounter);
+  var text = parts.length ? parts.join(' / ') : '✅ アタック成功';
+  if(b.memo) text += ' 📝';
+  return text;
 }
 // ★ v3.7.0: anchor → 表示用ラベル
 function bdAnchorLabel(a){
@@ -3497,7 +3532,7 @@ function bdOpenAttackModal(){
   _bdEl('bdAtkRouteSec').style.display='none';
   _bdEl('bdAtkRoute').style.display='none';
   _bdEl('bdAtkName').value='';
-  _bdEl('bdAtkPower').value='0';
+  _bdEl('bdAtkPower').value='5000';
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
@@ -3518,7 +3553,7 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
     route.innerHTML='<b>'+bdAnchorLabel(fromAnchor)+'</b><span class="bd-route-arrow">⚔→</span><b>'+bdAnchorLabel(toAnchor)+'</b>';
   }
   _bdEl('bdAtkName').value='';
-  _bdEl('bdAtkPower').value='0';
+  _bdEl('bdAtkPower').value='5000';
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
@@ -3654,6 +3689,24 @@ function bdOpenDefenseModal(b){
   safeVibrate([80,40,80,40,120]); // ★ v3.9.0: 防御側により強いパターン
 }
 function bdRenderDefResponses(){
+  // ★ v3.10.0: 防御バーのカウンター合計表示を更新
+  try{
+    var counterBadge = _bdEl('bdDefBarCounter');
+    if(counterBadge && _bdDefDraft){
+      var total = (_bdDefDraft.responses||[]).filter(function(r){return r.type==='counter';})
+                    .reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
+      var hasBlocker = (_bdDefDraft.responses||[]).some(function(r){return r.type==='blocker';});
+      var label = '';
+      if(total>0) label += '+'+total;
+      if(hasBlocker) label += (label?' / ':'')+'🛡';
+      if(label){
+        counterBadge.textContent = label;
+        counterBadge.style.display = '';
+      }else{
+        counterBadge.style.display = 'none';
+      }
+    }
+  }catch(e){}
   var box=_bdEl('bdDefResps'); if(!box) return;
   box.innerHTML='';
   if(!_bdDefDraft || !_bdDefDraft.responses.length){
@@ -3706,25 +3759,13 @@ function bdSubmitDefense(){
 function bdOpenResultModal(b){
   _bdEl('bdResMine').innerHTML = _bdSummaryText(b);
   _bdEl('bdResBarPower').textContent = _bdPowerBadge(b);
-  // ★ v3.8.0: バー部分のサマリーテキスト
-  var responsesSummary = '';
-  if(b.responses && b.responses.length){
-    var counters = b.responses.filter(function(r){return r.type==='counter';}).map(function(r){return '+'+r.value;}).join(' ');
-    var hasBlocker = b.responses.some(function(r){return r.type==='blocker';});
-    var parts = [];
-    if(counters) parts.push('カウンター '+counters);
-    if(hasBlocker) parts.push('🛡 ブロッカー');
-    responsesSummary = parts.join(' / ');
-  } else {
-    responsesSummary = '防御なし';
-  }
-  if(b.memo) responsesSummary += ' (📝 '+b.memo+')';
-  _bdEl('bdResBarSummary').textContent = '🛡 '+responsesSummary;
+  // ★ v3.10.0: バー部分のサマリーテキスト（アタック成功/カウンター処理/ブロック処理）
+  _bdEl('bdResBarSummary').textContent = _bdMakeBarSummary(b);
 
   var box=_bdEl('bdResResps');
   box.innerHTML='';
   if(!b.responses || !b.responses.length){
-    box.innerHTML='<div class="bd-empty">相手は防御しませんでした</div>';
+    box.innerHTML='<div class="bd-empty">✅ アタック成功（防御なし）</div>';
   }else{
     b.responses.forEach(function(r){
       var row=document.createElement('div');
@@ -6156,6 +6197,21 @@ function checkReconnect(){
 //         onclick属性を完全廃止
 // ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
+  // ★ v3.10.0: iOSダブルタップズーム対策（300ms以内の連続touchendを抑制）
+  var _lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e){
+    var now = Date.now();
+    if(now - _lastTouchEnd <= 350){
+      // テキスト入力欄上では抑制しない
+      var t = e.target;
+      if(t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.isContentEditable)) { _lastTouchEnd = now; return; }
+      e.preventDefault();
+    }
+    _lastTouchEnd = now;
+  }, {passive:false});
+  // pinch-zoom も無効化（ダブルタップとは別）: gesturestart で preventDefault
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+
   // ★ 初期画面：再接続チェック（scrLoginまたは復元）
   checkReconnect();
 
