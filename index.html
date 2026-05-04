@@ -419,6 +419,12 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-btn.declare{background:linear-gradient(135deg,#7c1d1d,#dc2626);color:#fff;box-shadow:0 3px 12px rgba(220,38,38,.35);}
 .bd-btn.resolve{background:linear-gradient(135deg,#0e7490,#22d3ee);color:#0a0a0a;}
 .bd-btn.confirm{background:linear-gradient(135deg,#5b21b6,#a78bfa);color:#fff;}
+/* ★ v3.9.0: 攻撃力 ± ステッパー */
+.bd-stepper{display:flex;gap:6px;align-items:center;}
+.bd-step-btn{padding:10px 8px;min-width:56px;border-radius:8px;border:1.5px solid rgba(220,38,38,.4);background:rgba(220,38,38,.08);color:#ef4444;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.bd-step-btn:active{transform:scale(.95);}
+.bd-step-btn.minor{font-size:11px;min-width:46px;border-color:rgba(220,38,38,.25);background:rgba(220,38,38,.04);}
+.bd-step-val{flex:1;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px 8px;color:#0a0a0a;font-size:18px;font-weight:900;font-family:'Bebas Neue',sans-serif;text-align:center;letter-spacing:1px;box-sizing:border-box;min-width:0;}
 /* 防御側を呼ぶ通知バッジ（背景表示用） */
 @keyframes bdPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.55);}50%{box-shadow:0 0 0 8px rgba(34,211,238,0);}}
 .tbn.battle-pending{animation:bdPulse 1.4s ease-in-out infinite;color:#22d3ee!important;}
@@ -1091,7 +1097,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.8.0</div>
+    <div class="logo-ver">BATTLE v3.9.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1107,7 +1113,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.8.0</div>
+    <div class="logo-ver">BATTLE v3.9.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1126,7 +1132,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.8.0</div>
+    <div class="logo-ver">BATTLE v3.9.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1149,7 +1155,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.8.0</div>
+    <div class="logo-ver">BATTLE v3.9.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1169,7 +1175,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.8.0</div>
+    <div class="logo-ver">BATTLE v3.9.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1301,6 +1307,18 @@ function fbStartListen() {
         <div id="toggleDon6P2" class="don6-toggle" data-player="p2" data-on="false">
           <div class="don6-knob"></div>
         </div>
+      </div>
+    </div>
+    <!-- ★ v3.9.0: バイブレーション ON/OFF -->
+    <div style="height:1px;background:rgba(255,255,255,.08);margin:14px 0;"></div>
+    <div style="font-size:11px;color:#8899aa;letter-spacing:1.5px;margin-bottom:10px;">FEEDBACK</div>
+    <div style="background:#161d2d;border-radius:12px;padding:14px 16px;margin-bottom:6px;border:1px solid rgba(255,255,255,.08);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#dde4f0;">バイブレーション</div>
+          <div style="font-size:10px;color:#5a6a84;margin-top:2px;">アタック・応答受信時に振動</div>
+        </div>
+        <button id="btnVibrateToggle" style="padding:8px 14px;border-radius:8px;border:1.5px solid rgba(34,197,94,.5);background:rgba(34,197,94,.18);color:#22c55e;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;">🔔 バイブ ON</button>
       </div>
     </div>
     <!-- 確定ボタン -->
@@ -1471,7 +1489,13 @@ function fbStartListen() {
       <input type="text" class="bd-input" id="bdAtkName" placeholder="例: シュラ / リーダー" maxlength="30">
     </div>
     <div class="bd-sec">攻撃力</div>
-    <input type="text" class="bd-input" id="bdAtkPower" placeholder="例: 5000" inputmode="numeric" maxlength="6">
+    <div class="bd-stepper">
+      <button class="bd-step-btn"       data-d="-1000">-1K</button>
+      <button class="bd-step-btn minor" data-d="-100">-100</button>
+      <input type="text" class="bd-step-val" id="bdAtkPower" value="0" inputmode="numeric" maxlength="6">
+      <button class="bd-step-btn minor" data-d="100">+100</button>
+      <button class="bd-step-btn"       data-d="1000">+1K</button>
+    </div>
     <div class="bd-row-target">
       <div class="bd-sec">対象（任意）</div>
       <input type="text" class="bd-input" id="bdAtkTarget" placeholder="例: リーダー / モンキー・D・ルフィ" maxlength="30">
@@ -2013,6 +2037,17 @@ function settingsOpen(){
     var t=document.getElementById(id);
     if(t)t.setAttribute('data-on',donLimit[p]?'true':'false');
   });
+  // ★ v3.9.0: バイブトグル状態を反映 + ハンドラ登録（一度だけ）
+  try{
+    var vb=document.getElementById('btnVibrateToggle');
+    if(vb){
+      vibrateSetEnabled(vibrateIsEnabled()); // 表示同期
+      if(!vb._vbBound){
+        vb._vbBound=true;
+        vb.addEventListener('click', function(){ vibrateSetEnabled(!vibrateIsEnabled()); safeVibrate(20); });
+      }
+    }
+  }catch(e){}
 }
 function settingsClose(){
   var ov=document.getElementById('settingsOverlay');
@@ -2910,7 +2945,7 @@ function undoState(){
       bf.classList.add('undo-flash');
       setTimeout(function(){ bf.classList.remove('undo-flash'); }, 600);
     }
-    if(navigator.vibrate){ try{ navigator.vibrate(20); }catch(e){} }
+    safeVibrate(20); // ★ v3.9.0
   }catch(e){}
   // ★ v3.5.0: アロー注釈の再描画
   try{ arrowRender(); }catch(e){}
@@ -3022,6 +3057,29 @@ function isMyTurn(){
   if(MY_ROLE==='p1') return isP1Turn;
   if(MY_ROLE==='p2') return !isP1Turn;
   return true;
+}
+
+// ══════ ★ v3.9.0: バイブレーション制御（設定でON/OFF切替） ══════
+function safeVibrate(pattern){
+  try{
+    var enabled = localStorage.getItem('OPTCG_VIBRATE_ENABLED');
+    if(enabled === 'off') return; // 明示的にOFFのときだけスキップ（既定はON）
+    if(navigator.vibrate) navigator.vibrate(pattern);
+  }catch(e){}
+}
+function vibrateIsEnabled(){
+  try{ return localStorage.getItem('OPTCG_VIBRATE_ENABLED') !== 'off'; }catch(e){ return true; }
+}
+function vibrateSetEnabled(on){
+  try{ localStorage.setItem('OPTCG_VIBRATE_ENABLED', on?'on':'off'); }catch(e){}
+  // 設定パネルのボタン表示を更新
+  var btn = document.getElementById('btnVibrateToggle');
+  if(btn){
+    btn.textContent = on ? '🔔 バイブ ON' : '🔕 バイブ OFF';
+    btn.style.background = on ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.08)';
+    btn.style.color = on ? '#22c55e' : '#aab';
+    btn.style.borderColor = on ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.18)';
+  }
 }
 
 // ══════ ★ v3.5.0: アロー注釈システム ══════
@@ -3391,6 +3449,26 @@ function _bdRespLabel(r){
   if(r.type==='blocker') return '🛡 ブロッカー宣言';
   return r.label || r.type;
 }
+// ★ v3.9.0: バトル解決後のサマリーテキスト
+function _bdMakeSummary(b){
+  if(!b) return '';
+  var role = b.atkRole==='p1' ? 'P1' : 'P2';
+  var atkPow = b.atkPower ? b.atkPower : '―';
+  var atk = '⚔ '+role+' '+atkPow;
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  var counters = responses.filter(function(r){ return r.type==='counter'; });
+  var totalCounter = counters.reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
+  var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
+  var defParts = [];
+  counters.forEach(function(c){ defParts.push('+'+c.value); });
+  if(hasBlocker) defParts.push('🛡 ブロッカー');
+  var def = defParts.length ? '🛡 '+defParts.join(' ') : '防御なし';
+  var summary = atk + ' → ' + def;
+  if(totalCounter>0) summary += ' (合計+'+totalCounter+')';
+  if(b.memo) summary += ' (📝 '+b.memo+')';
+  return summary;
+}
 // ★ v3.7.0: anchor → 表示用ラベル
 function bdAnchorLabel(a){
   if(!a||!a.zone) return '';
@@ -3419,7 +3497,7 @@ function bdOpenAttackModal(){
   _bdEl('bdAtkRouteSec').style.display='none';
   _bdEl('bdAtkRoute').style.display='none';
   _bdEl('bdAtkName').value='';
-  _bdEl('bdAtkPower').value='';
+  _bdEl('bdAtkPower').value='0';
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
@@ -3440,11 +3518,11 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
     route.innerHTML='<b>'+bdAnchorLabel(fromAnchor)+'</b><span class="bd-route-arrow">⚔→</span><b>'+bdAnchorLabel(toAnchor)+'</b>';
   }
   _bdEl('bdAtkName').value='';
-  _bdEl('bdAtkPower').value='';
+  _bdEl('bdAtkPower').value='0';
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
-  setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); }catch(e){} }, 100);
+  setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); _bdEl('bdAtkPower').select(); }catch(e){} }, 100);
 }
 // ── バトルモード切替（ドラッグでアタック宣言）
 function bdToggleMode(){
@@ -3556,6 +3634,7 @@ function bdSubmitAttackDeclare(){
   _bdSeenId = pendingBattle.id; // 自分の宣言は再表示しない
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){} // 攻撃側にも赤アロー表示
+  safeVibrate(30); // ★ v3.9.0: 攻撃送信完了の合図
   toast('⚔ アタック宣言を送信しました');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
@@ -3572,7 +3651,7 @@ function bdOpenDefenseModal(b){
   bdSetExpanded('bdDefendPanel', false); // ★ v3.8.0: 起動時はバー
   _bdShowOnly('bdDefendPanel');
   _bdShowOverlay();
-  if(navigator.vibrate){ try{ navigator.vibrate([60,40,60]); }catch(e){} }
+  safeVibrate([80,40,80,40,120]); // ★ v3.9.0: 防御側により強いパターン
 }
 function bdRenderDefResponses(){
   var box=_bdEl('bdDefResps'); if(!box) return;
@@ -3665,13 +3744,17 @@ function bdOpenResultModal(b){
   bdSetExpanded('bdResultPanel', false); // ★ v3.8.0: 起動時はバー
   _bdShowOnly('bdResultPanel');
   _bdShowOverlay();
+  safeVibrate([40,30,40]); // ★ v3.9.0: 攻撃側に応答到着の合図
 }
 function bdConfirmResult(){
+  // ★ v3.9.0: 解決サマリートースト（攻撃側）
+  var summary = _bdMakeSummary(pendingBattle);
   saveState();
   pendingBattle = null;
   _bdSeenId = null;
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){} // ★ v3.7.0: 赤アロー消去
+  if(summary) toast(summary);
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
 }
@@ -3731,6 +3814,11 @@ function bdOnFirebaseSync(snap){
   }else{
     // バトル終了 → 開いているモーダルを閉じる
     if(prev){
+      // ★ v3.9.0: 防御側にもサマリートースト（攻撃側はbdConfirmResultで表示）
+      if(MY_ROLE !== prev.atkRole){
+        var summary = _bdMakeSummary(prev);
+        if(summary) toast(summary);
+      }
       _bdSeenId = null;
       _bdHideOverlay();
       var bb=_bdEl('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending');
@@ -3774,6 +3862,17 @@ function bdInitButtons(){
     if(b._bdBound) return; b._bdBound=true;
     b.addEventListener('click', function(){ bdAddCounter(parseInt(b.dataset.cv)); });
   });
+  // ★ v3.9.0: 攻撃力 ± ステッパー
+  document.querySelectorAll('#bdAttackPanel .bd-step-btn').forEach(function(b){
+    if(b._bdBound) return; b._bdBound=true;
+    b.addEventListener('click', function(){
+      var d = parseInt(b.dataset.d)||0;
+      var inp = _bdEl('bdAtkPower');
+      var cur = parseInt((inp.value||'0').replace(/[^\d-]/g,''))||0;
+      var next = Math.max(0, Math.min(99999, cur + d));
+      inp.value = String(next);
+    });
+  });
 }
 
 // ★ v3.4.0: 直前のターン状態を保持（オーバーレイ発火判定用）
@@ -3789,7 +3888,7 @@ function showTurnOverlay(isYou){
     void ov.offsetWidth;
     ov.classList.add('show', isYou?'you':'opp');
     setTimeout(function(){ ov.classList.remove('show'); }, 1100);
-    if(isYou && navigator.vibrate){ try{ navigator.vibrate(40); }catch(e){} }
+    if(isYou) safeVibrate(40); // ★ v3.9.0
   }catch(e){}
 }
 function updateTurnChip(){
