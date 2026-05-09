@@ -436,6 +436,21 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-result-cards{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;justify-content:center;}
 .bd-result-cards .bd-rc-thumb{width:50px;height:70px;border-radius:6px;overflow:hidden;border:2px solid rgba(255,213,74,.6);background:#0d1835;flex-shrink:0;}
 .bd-result-cards .bd-rc-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+/* ★ v3.17.0: ブロッカー選択サムネイル */
+.bd-blocker-thumbs{display:flex;gap:6px;flex-wrap:wrap;padding:4px 2px;}
+.bd-blocker-thumb{position:relative;width:64px;height:90px;border-radius:6px;overflow:hidden;border:2px solid rgba(255,255,255,.2);background:#0d1835;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:transform .12s,border-color .12s;}
+.bd-blocker-thumb:active{transform:scale(.95);}
+.bd-blocker-thumb.selected{border:3px solid #ef4444;box-shadow:0 0 12px rgba(239,68,68,.65);}
+.bd-blocker-thumb.selected::after{content:'🛡';position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:14px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;}
+.bd-blocker-thumb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;}
+.bd-blocker-thumb .bd-bt-power{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);color:#5bc8ff;font-size:11px;font-weight:900;text-align:center;padding:1px 0;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;}
+.bd-blocker-empty{color:#566;font-size:12px;font-style:italic;padding:10px 4px;}
+/* ★ v3.17.0: 結果モーダルのブロッカーキャラサムネイル */
+.bd-result-blocker{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);border-radius:8px;margin-top:6px;}
+.bd-result-blocker .bd-rb-img{width:50px;height:70px;border-radius:6px;overflow:hidden;border:2px solid rgba(239,68,68,.6);flex-shrink:0;}
+.bd-result-blocker .bd-rb-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.bd-result-blocker .bd-rb-info{flex:1;color:#fff;font-size:13px;line-height:1.5;}
+.bd-result-blocker .bd-rb-info b{color:#ef4444;}
 /* 拡大ポップアップ状態 */
 .bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -1140,7 +1155,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.16.0</div>
+    <div class="logo-ver">BATTLE v3.17.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1156,7 +1171,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.16.0</div>
+    <div class="logo-ver">BATTLE v3.17.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1175,7 +1190,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.16.0</div>
+    <div class="logo-ver">BATTLE v3.17.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1198,7 +1213,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.16.0</div>
+    <div class="logo-ver">BATTLE v3.17.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1218,7 +1233,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.16.0</div>
+    <div class="logo-ver">BATTLE v3.17.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1591,10 +1606,27 @@ function fbStartListen() {
       </div>
     </div>
 
-    <!-- Step3: ブロックする詳細 -->
+    <!-- Step3: ブロックする詳細（v3.17.0: ブロッカー選択 + カウンター併用） -->
     <div class="bd-step-block" data-step="blocker" style="display:none;">
-      <div class="bd-readonly" style="text-align:center;font-size:14px;padding:14px;color:#ffd54a;border-color:rgba(255,213,74,.45);">
-        🛡 ブロッカーで防ぎます
+      <div class="bd-sec">🛡 ブロックするキャラを選択</div>
+      <div class="bd-blocker-thumbs" id="bdDefBlockerThumbs"></div>
+      <div class="bd-sec" style="margin-top:8px;">カウンター（手札）— 併用可</div>
+      <div class="bd-stepper">
+        <button class="bd-step-btn" id="bdDefBlkCounterDown">-1K</button>
+        <input type="text" class="bd-step-val" id="bdDefBlkCounterVal" value="0" inputmode="numeric" maxlength="6">
+        <button class="bd-step-btn" id="bdDefBlkCounterUp">+1K</button>
+      </div>
+      <div class="bd-sec" style="color:#ffd54a;">🎴 イベントカード カウンター</div>
+      <div class="bd-stepper">
+        <button class="bd-step-btn event-step" id="bdDefBlkEventDown">-1K</button>
+        <input type="text" class="bd-step-val event-val" id="bdDefBlkEventVal" value="0" inputmode="numeric" maxlength="6">
+        <button class="bd-step-btn event-step" id="bdDefBlkEventUp">+1K</button>
+      </div>
+      <div class="bd-sec" style="color:#ffd54a;">🎴 ドン使用枚数</div>
+      <div class="bd-stepper">
+        <button class="bd-step-btn event-step" id="bdDefBlkEventCostDown">-1</button>
+        <input type="text" class="bd-step-val event-val" id="bdDefBlkEventCostVal" value="0" inputmode="numeric" maxlength="2">
+        <button class="bd-step-btn event-step" id="bdDefBlkEventCostUp">+1</button>
       </div>
       <div class="bd-bar-row" style="margin-top:10px;">
         <button class="bd-bar-btn toggle" id="bdDefBackFromBlocker" style="flex:1;">← 戻る</button>
@@ -3771,13 +3803,14 @@ var _bdDefDraft = null; // {responses:[], memo:''}
 function bdOpenDefenseModal(b){
   // ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0/v3.16.0: シンプルなモデル
   _bdDefDraft = {
-    counter:   0,    // ★ v3.16.0: 手札カウンター初期0（カードタップで自動加算）
+    counter:   0,
     event:     0,
     eventCost: 0,
     blocker:   false,
+    blockerCard: null, // ★ v3.17.0: ブロックする側のキャラ
     memo: b.memo || '',
     step: 'choice',
-    usedCards: []    // ★ v3.16.0: 選択した手札カード [{id, img, name, counter}]
+    usedCards: []
   };
   _bdEl('bdDefBarPower').textContent = _bdPowerBadge(b);
   var memoEl = _bdEl('bdDefMemo'); if(memoEl) memoEl.value = _bdDefDraft.memo;
@@ -3798,13 +3831,57 @@ function bdRenderActiveDon(){
             ? donState[p].active : 0;
   el.textContent = '🎴 アクティブドン: '+n+'枚';
 }
-// ★ v3.15.0: ステップ切替
+// ★ v3.17.0: ブロッカー選択候補（自分のフィールドキャラ）描画
+function bdRenderDefBlockers(){
+  var box = _bdEl('bdDefBlockerThumbs'); if(!box) return;
+  box.innerHTML = '';
+  var p = MY_ROLE==='p2' ? 'p2' : 'p1';
+  var fieldRe = new RegExp('^field_'+p+'_\\d+$');
+  var stageLoc = 'stage_'+p;
+  var leaderLoc = 'leader_'+p;
+  var chars = (typeof testCards!=='undefined' && Array.isArray(testCards))
+              ? testCards.filter(function(c){ return c && c.loc && (fieldRe.test(c.loc) || c.loc===stageLoc || c.loc===leaderLoc); })
+              : [];
+  if(!chars.length){
+    box.innerHTML = '<div class="bd-blocker-empty">フィールドにキャラがいません</div>';
+    return;
+  }
+  chars.forEach(function(c){
+    var div = document.createElement('div');
+    var isSelected = _bdDefDraft && _bdDefDraft.blockerCard && _bdDefDraft.blockerCard.id===c.id;
+    div.className = 'bd-blocker-thumb' + (isSelected?' selected':'');
+    if(c.img){
+      var img=document.createElement('img'); img.src=c.img; img.alt=c.name||''; div.appendChild(img);
+    }
+    var pw = parseInt(c.power)||0;
+    if(pw>0){
+      var badge = document.createElement('div');
+      badge.className = 'bd-bt-power';
+      badge.textContent = pw;
+      div.appendChild(badge);
+    }
+    div.addEventListener('click', function(){
+      if(!_bdDefDraft) return;
+      // トグル: 同じキャラ再タップで解除、別タップで切替
+      if(_bdDefDraft.blockerCard && _bdDefDraft.blockerCard.id===c.id){
+        _bdDefDraft.blockerCard = null;
+      }else{
+        _bdDefDraft.blockerCard = {id:c.id, img:c.img||'', name:c.name||'', power:pw};
+      }
+      bdRenderDefBlockers();
+    });
+    box.appendChild(div);
+  });
+}
+// ★ v3.15.0/v3.17.0: ステップ切替
 function bdSetDefStep(step){
   if(!_bdDefDraft) return;
   _bdDefDraft.step = step;
   document.querySelectorAll('#bdDefendPanel .bd-step-block').forEach(function(el){
     el.style.display = (el.dataset.step===step) ? '' : 'none';
   });
+  // ★ v3.17.0: blockerステップに入った時にキャラ候補を描画
+  if(step==='blocker'){ try{ bdRenderDefBlockers(); }catch(e){} }
 }
 // ★ v3.15.0: 自分の手札サムネイルを描画
 function bdRenderDefHand(){
@@ -3856,15 +3933,20 @@ function bdRenderDefHand(){
     box.appendChild(div);
   });
 }
-// ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0: ステッパー値をUIに反映
+// ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0/v3.17.0: ステッパー値をUIに反映
 function bdRenderDefDraft(){
   if(!_bdDefDraft) return;
   var v = String(_bdDefDraft.counter||0);
   var ev = String(_bdDefDraft.event||0);
   var ec = String(_bdDefDraft.eventCost||0);
+  // counter step 側
   var exp = _bdEl('bdDefExpCounterVal');  if(exp) exp.value = v;
   var eexp = _bdEl('bdDefExpEventVal');   if(eexp) eexp.value = ev;
   var cexp = _bdEl('bdDefExpEventCostVal');if(cexp) cexp.value = ec;
+  // ★ v3.17.0: blocker step 側にも同期
+  var bk1 = _bdEl('bdDefBlkCounterVal');  if(bk1) bk1.value = v;
+  var bk2 = _bdEl('bdDefBlkEventVal');    if(bk2) bk2.value = ev;
+  var bk3 = _bdEl('bdDefBlkEventCostVal');if(bk3) bk3.value = ec;
 }
 function bdSetCounter(v){
   if(!_bdDefDraft) return;
@@ -3926,9 +4008,7 @@ function bdConfirmCounter(){
 function bdConfirmBlocker(){
   if(!pendingBattle || !_bdDefDraft) return;
   _bdDefDraft.blocker = true;
-  _bdDefDraft.counter = 0;
-  _bdDefDraft.event = 0;
-  _bdDefDraft.eventCost = 0;
+  // ★ v3.17.0: ブロッカー併用カウンター/イベント/ドンは温存（リセットしない）
   bdSubmitDefense();
 }
 function bdSubmitDefense(){
@@ -3936,9 +4016,11 @@ function bdSubmitDefense(){
   saveState();
   // シンプルモデル → 既存 responses[] 形式に変換
   var responses = [];
+  // ★ v3.17.0: 自動トラッシュ用に値を保存
+  var trashCards = (_bdDefDraft.usedCards||[]).slice();
+  var restDonCount = (_bdDefDraft.event && _bdDefDraft.event>0 && _bdDefDraft.eventCost>0) ? _bdDefDraft.eventCost : 0;
   if(_bdDefDraft.counter && _bdDefDraft.counter>0){
     var co = {type:'counter', value:_bdDefDraft.counter};
-    // ★ v3.16.0: 選択した手札カードを添付
     if(_bdDefDraft.usedCards && _bdDefDraft.usedCards.length){
       co.cards = _bdDefDraft.usedCards.map(function(u){ return {id:u.id, img:u.img, name:u.name, counter:u.counter}; });
     }
@@ -3950,7 +4032,10 @@ function bdSubmitDefense(){
     responses.push(ev);
   }
   if(_bdDefDraft.blocker){
-    responses.push({type:'blocker'});
+    var bk = {type:'blocker'};
+    // ★ v3.17.0: ブロッカーキャラ情報を含める
+    if(_bdDefDraft.blockerCard) bk.card = _bdDefDraft.blockerCard;
+    responses.push(bk);
   }
   pendingBattle.phase = 'resolving';
   pendingBattle.responses = responses;
@@ -3958,9 +4043,49 @@ function bdSubmitDefense(){
   pendingBattle.memo = memoEl ? (memoEl.value||'').trim().slice(0,40) : '';
   _bdDefDraft = null;
   _bdHideOverlay();
-  toast('🛡 応答を送信しました');
+  // ★ v3.17.0: 自動トラッシュ + DONレスト
+  var myPlayer = MY_ROLE==='p2' ? 'p2' : 'p1';
+  var trashedCount = _bdAutoTrashUsedCards(myPlayer, trashCards);
+  var restedCount  = _bdAutoRestDon(myPlayer, restDonCount);
+  var notes = [];
+  if(trashedCount>0) notes.push('🪦 カウンター札'+trashedCount+'枚をトラッシュへ');
+  if(restedCount>0)  notes.push('🎴 ドン'+restedCount+'枚をレストに');
+  toast('🛡 応答を送信しました' + (notes.length ? ' / ' + notes.join(' / ') : ''));
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
+// ★ v3.17.0: 使用したカウンター札を自動トラッシュ
+function _bdAutoTrashUsedCards(player, usedCards){
+  if(!usedCards || !usedCards.length) return 0;
+  if(typeof testCards === 'undefined') return 0;
+  var trashed = 0;
+  usedCards.forEach(function(uc){
+    var i = testCards.findIndex(function(x){ return x && x.id === uc.id; });
+    if(i < 0) return;
+    var c = testCards[i];
+    var src = c.loc;
+    c.loc = 'trash_' + player;
+    c.rested = false;
+    if(typeof _trashAdd === 'function') _trashAdd(player, c);
+    trashed++;
+  });
+  if(trashed > 0){
+    try{ renderHand(); }catch(e){}
+    try{ renderField(); }catch(e){}
+  }
+  return trashed;
+}
+// ★ v3.17.0: イベント使用に応じてアクティブDONをレストに移動
+function _bdAutoRestDon(player, count){
+  if(!count || count <= 0) return 0;
+  if(typeof donState === 'undefined' || !donState[player]) return 0;
+  var ds = donState[player];
+  var actual = Math.min(count, ds.active||0);
+  if(actual <= 0) return 0;
+  ds.active -= actual;
+  ds.rest += actual;
+  try{ renderDonState(player); }catch(e){}
+  return actual;
 }
 
 // ── 結果通知モーダル（P1側）
@@ -4018,6 +4143,24 @@ function bdOpenResultModal(b){
         bg.className = 'bd-result-badge block';
         bg.innerHTML = '🛡 ブロック防御<span class="bd-rb-sub">ブロッカーで受ける</span>';
         box.appendChild(bg);
+        // ★ v3.17.0: ブロッカーキャラ情報を表示
+        if(r.card && (r.card.img || r.card.name)){
+          var bk = document.createElement('div');
+          bk.className = 'bd-result-blocker';
+          var imgWrap = document.createElement('div');
+          imgWrap.className = 'bd-rb-img';
+          if(r.card.img){
+            var img = document.createElement('img'); img.src = r.card.img; img.alt = r.card.name||''; imgWrap.appendChild(img);
+          }
+          var info = document.createElement('div');
+          info.className = 'bd-rb-info';
+          var nm = r.card.name || 'ブロッカー';
+          var pw = r.card.power ? '<b>'+r.card.power+'</b>' : '';
+          info.innerHTML = '<div>'+nm+'</div>' + (pw ? '<div style="font-size:11px;opacity:.85;">パワー '+pw+'</div>' : '');
+          bk.appendChild(imgWrap);
+          bk.appendChild(info);
+          box.appendChild(bk);
+        }
       }
     });
   }
@@ -4160,12 +4303,18 @@ function bdInitButtons(){
     // カウンターステッパー
     ['bdDefExpCounterUp',   function(){ bdAddCounter( 1000); }],
     ['bdDefExpCounterDown', function(){ bdAddCounter(-1000); }],
+    ['bdDefBlkCounterUp',   function(){ bdAddCounter( 1000); }], // ★ v3.17.0
+    ['bdDefBlkCounterDown', function(){ bdAddCounter(-1000); }],
     // イベントカウンターステッパー
     ['bdDefExpEventUp',   function(){ bdAddEvent( 1000); }],
     ['bdDefExpEventDown', function(){ bdAddEvent(-1000); }],
+    ['bdDefBlkEventUp',   function(){ bdAddEvent( 1000); }],
+    ['bdDefBlkEventDown', function(){ bdAddEvent(-1000); }],
     // ドンコストステッパー
     ['bdDefExpEventCostUp',   function(){ bdAddEventCost( 1); }],
     ['bdDefExpEventCostDown', function(){ bdAddEventCost(-1); }],
+    ['bdDefBlkEventCostUp',   function(){ bdAddEventCost( 1); }],
+    ['bdDefBlkEventCostDown', function(){ bdAddEventCost(-1); }],
     // 結果バーのボタン
     ['bdResBarOk',      bdConfirmResult],
     ['bdResBarCancel',  bdCancelDeclare],
@@ -4175,30 +4324,31 @@ function bdInitButtons(){
   pairs.forEach(function(p){
     var el=_bdEl(p[0]); if(el && !el._bdBound){ el._bdBound=true; el.addEventListener('click', p[1]); }
   });
-  // カウンター値の直接入力
-  ['bdDefExpCounterVal'].forEach(function(id){
+  // カウンター値の直接入力（counter step + blocker step）
+  ['bdDefExpCounterVal','bdDefBlkCounterVal'].forEach(function(id){
     var el=_bdEl(id); if(!el || el._bdBound) return; el._bdBound=true;
     el.addEventListener('input', function(){
       var v=parseInt((el.value||'0').replace(/[^\d]/g,''))||0;
       if(_bdDefDraft) _bdDefDraft.counter = Math.max(0, Math.min(99000, v));
-      var other = null;
-      if(other && document.activeElement!==other) other.value = String(_bdDefDraft? _bdDefDraft.counter : v);
+      bdRenderDefDraft();
     });
   });
-  // ★ v3.12.0: イベント値の直接入力
-  ['bdDefExpEventVal'].forEach(function(id){
+  // イベント値の直接入力
+  ['bdDefExpEventVal','bdDefBlkEventVal'].forEach(function(id){
     var el=_bdEl(id); if(!el || el._bdBound) return; el._bdBound=true;
     el.addEventListener('input', function(){
       var v=parseInt((el.value||'0').replace(/[^\d]/g,''))||0;
       if(_bdDefDraft) _bdDefDraft.event = Math.max(0, Math.min(99000, v));
+      bdRenderDefDraft();
     });
   });
-  // ★ v3.13.0: ドンコスト値の直接入力
-  ['bdDefExpEventCostVal'].forEach(function(id){
+  // ドンコスト値の直接入力
+  ['bdDefExpEventCostVal','bdDefBlkEventCostVal'].forEach(function(id){
     var el=_bdEl(id); if(!el || el._bdBound) return; el._bdBound=true;
     el.addEventListener('input', function(){
       var v=parseInt((el.value||'0').replace(/[^\d]/g,''))||0;
       if(_bdDefDraft) _bdDefDraft.eventCost = Math.max(0, Math.min(20, v));
+      bdRenderDefDraft();
     });
   });
   // ★ v3.9.0: 攻撃力 ± ステッパー
