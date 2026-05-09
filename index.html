@@ -422,6 +422,20 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 /* ★ v3.15.0: 攻撃側「回答待ち」は中央配置の小型ポップアップ */
 #bdResultPanel.compact-await{max-width:320px;padding:12px 14px;}
 #bdResultPanel.compact-await .bd-bar-only:first-child{flex-wrap:wrap;}
+/* ★ v3.16.0: 選択中の手札サムネイル（金枠）+ アクティブDON */
+.bd-hand-thumb.selected{border:3px solid #ffd54a !important;box-shadow:0 0 12px rgba(255,213,74,.65);}
+.bd-hand-thumb.selected::after{content:'✓';position:absolute;top:2px;right:2px;background:#ffd54a;color:#0a0a0a;font-weight:900;font-size:10px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;}
+.bd-active-don{margin-top:6px;padding:6px 10px;background:rgba(255,213,74,.1);border:1px solid rgba(255,213,74,.3);border-radius:6px;color:#ffd54a;font-size:12px;font-weight:700;text-align:center;letter-spacing:1px;}
+/* ★ v3.16.0: 結果モーダルの大きいバッジ */
+.bd-result-badge{margin:8px 0;padding:14px 12px;border-radius:10px;text-align:center;font-family:'Bebas Neue','Noto Sans JP',sans-serif;font-size:18px;font-weight:900;letter-spacing:2px;border:2px solid;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+.bd-result-badge.success{background:linear-gradient(135deg,rgba(34,197,94,.25),rgba(34,197,94,.12));color:#4ade80;border-color:rgba(34,197,94,.6);}
+.bd-result-badge.counter{background:linear-gradient(135deg,rgba(34,211,238,.25),rgba(34,211,238,.12));color:#22d3ee;border-color:rgba(34,211,238,.6);}
+.bd-result-badge.event{background:linear-gradient(135deg,rgba(255,213,74,.25),rgba(255,213,74,.12));color:#ffd54a;border-color:rgba(255,213,74,.6);}
+.bd-result-badge.block{background:linear-gradient(135deg,rgba(239,68,68,.25),rgba(239,68,68,.12));color:#ef4444;border-color:rgba(239,68,68,.6);}
+.bd-result-badge .bd-rb-sub{display:block;margin-top:6px;font-size:13px;letter-spacing:1px;opacity:.85;}
+.bd-result-cards{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;justify-content:center;}
+.bd-result-cards .bd-rc-thumb{width:50px;height:70px;border-radius:6px;overflow:hidden;border:2px solid rgba(255,213,74,.6);background:#0d1835;flex-shrink:0;}
+.bd-result-cards .bd-rc-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 /* 拡大ポップアップ状態 */
 .bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -1126,7 +1140,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.15.0</div>
+    <div class="logo-ver">BATTLE v3.16.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1142,7 +1156,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.15.0</div>
+    <div class="logo-ver">BATTLE v3.16.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1161,7 +1175,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.15.0</div>
+    <div class="logo-ver">BATTLE v3.16.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1184,7 +1198,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.15.0</div>
+    <div class="logo-ver">BATTLE v3.16.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1204,7 +1218,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.15.0</div>
+    <div class="logo-ver">BATTLE v3.16.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1554,7 +1568,7 @@ function fbStartListen() {
       <div class="bd-sec">カウンター（手札）</div>
       <div class="bd-stepper">
         <button class="bd-step-btn" id="bdDefExpCounterDown">-1K</button>
-        <input type="text" class="bd-step-val" id="bdDefExpCounterVal" value="1000" inputmode="numeric" maxlength="6">
+        <input type="text" class="bd-step-val" id="bdDefExpCounterVal" value="0" inputmode="numeric" maxlength="6">
         <button class="bd-step-btn" id="bdDefExpCounterUp">+1K</button>
       </div>
       <div class="bd-sec" style="color:#ffd54a;">🎴 イベントカード カウンター</div>
@@ -1588,9 +1602,11 @@ function fbStartListen() {
       </div>
     </div>
 
-    <!-- ★ v3.15.0: 自分の手札（タップでカウンター値を自動加算） -->
-    <div class="bd-sec" style="margin-top:10px;">📋 あなたの手札（タップで +カウンター）</div>
+    <!-- ★ v3.15.0/v3.16.0: 自分の手札（タップでカウンター値を自動加算） -->
+    <div class="bd-sec" style="margin-top:10px;">📋 あなたの手札（タップで選択 / 再タップで解除）</div>
     <div class="bd-hand-thumbs" id="bdDefHandThumbs"></div>
+    <!-- ★ v3.16.0: アクティブドン枚数表示 -->
+    <div class="bd-active-don" id="bdDefActiveDon">🎴 アクティブドン: ―枚</div>
   </div>
 
   <!-- 結果通知パネル（攻撃側が応答を確認） -->
@@ -3753,25 +3769,34 @@ function bdSubmitAttackDeclare(){
 // ── 防御応答モーダル（P2側）
 var _bdDefDraft = null; // {responses:[], memo:''}
 function bdOpenDefenseModal(b){
-  // ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0: シンプルなモデル
+  // ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0/v3.16.0: シンプルなモデル
   _bdDefDraft = {
-    counter:   1000, // 手札カウンター初期1000
+    counter:   0,    // ★ v3.16.0: 手札カウンター初期0（カードタップで自動加算）
     event:     0,
     eventCost: 0,
     blocker:   false,
     memo: b.memo || '',
-    step: 'choice'   // ★ v3.15.0: choice / counter / blocker
+    step: 'choice',
+    usedCards: []    // ★ v3.16.0: 選択した手札カード [{id, img, name, counter}]
   };
   _bdEl('bdDefBarPower').textContent = _bdPowerBadge(b);
   var memoEl = _bdEl('bdDefMemo'); if(memoEl) memoEl.value = _bdDefDraft.memo;
   bdRenderDefDraft();
   bdSetDefStep('choice');
-  bdRenderDefHand(); // 手札サムネイル描画
+  bdRenderDefHand();
+  bdRenderActiveDon(); // ★ v3.16.0
   _bdShowOnly('bdDefendPanel');
   _bdShowOverlay();
-  // 防御パネルは中央表示（バー方式は廃止）
   document.getElementById('battleDeclareOverlay').classList.add('expanded');
   safeVibrate([80,40,80,40,120]);
+}
+// ★ v3.16.0: アクティブDON枚数の表示
+function bdRenderActiveDon(){
+  var el = _bdEl('bdDefActiveDon'); if(!el) return;
+  var p = MY_ROLE==='p2' ? 'p2' : 'p1';
+  var n = (typeof donState!=='undefined' && donState[p] && typeof donState[p].active==='number')
+            ? donState[p].active : 0;
+  el.textContent = '🎴 アクティブドン: '+n+'枚';
 }
 // ★ v3.15.0: ステップ切替
 function bdSetDefStep(step){
@@ -3796,7 +3821,8 @@ function bdRenderDefHand(){
   hand.forEach(function(c){
     var cv = parseInt(c.counter)||0;
     var div = document.createElement('div');
-    div.className = 'bd-hand-thumb' + (cv>0 ? ' tappable':'');
+    var isSelected = _bdDefDraft && _bdDefDraft.usedCards.some(function(u){ return u.id===c.id; });
+    div.className = 'bd-hand-thumb' + (cv>0 ? ' tappable':'') + (isSelected?' selected':'');
     if(c.img){
       var img=document.createElement('img'); img.src=c.img; img.alt=c.name||''; div.appendChild(img);
     }
@@ -3811,12 +3837,21 @@ function bdRenderDefHand(){
     div.appendChild(badge);
     div.addEventListener('click', function(){
       if(cv<=0){ toast('このカードはカウンター値がありません'); return; }
-      // カウンター手札に加算 → カウンターステップに進める
-      bdAddCounter(cv);
-      if(_bdDefDraft && _bdDefDraft.step==='choice'){
-        bdSetDefStep('counter');
+      if(!_bdDefDraft) return;
+      var idx = _bdDefDraft.usedCards.findIndex(function(u){ return u.id===c.id; });
+      if(idx >= 0){
+        // 選択解除 → カウンター値も減算
+        _bdDefDraft.usedCards.splice(idx, 1);
+        bdAddCounter(-cv);
+        toast('🛡 −'+cv+' を解除');
+      }else{
+        // 選択追加 → カウンター値を加算
+        _bdDefDraft.usedCards.push({id:c.id, img:c.img||'', name:c.name||'', counter:cv});
+        bdAddCounter(cv);
+        if(_bdDefDraft.step==='choice') bdSetDefStep('counter');
+        toast('🛡 +'+cv+' を加算');
       }
-      toast('🛡 +'+cv+' を加算');
+      bdRenderDefHand(); // 金枠表示更新
     });
     box.appendChild(div);
   });
@@ -3902,7 +3937,12 @@ function bdSubmitDefense(){
   // シンプルモデル → 既存 responses[] 形式に変換
   var responses = [];
   if(_bdDefDraft.counter && _bdDefDraft.counter>0){
-    responses.push({type:'counter', value:_bdDefDraft.counter});
+    var co = {type:'counter', value:_bdDefDraft.counter};
+    // ★ v3.16.0: 選択した手札カードを添付
+    if(_bdDefDraft.usedCards && _bdDefDraft.usedCards.length){
+      co.cards = _bdDefDraft.usedCards.map(function(u){ return {id:u.id, img:u.img, name:u.name, counter:u.counter}; });
+    }
+    responses.push(co);
   }
   if(_bdDefDraft.event && _bdDefDraft.event>0){
     var ev = {type:'event', value:_bdDefDraft.event};
@@ -3934,16 +3974,51 @@ function bdOpenResultModal(b){
   _bdEl('bdResBarOk').style.display = '';
   _bdEl('bdResultPanel').classList.remove('compact-await'); // ★ v3.15.0
 
+  // ★ v3.16.0: 結果表示を大バッジ + カードサムネイルに再設計
   var box=_bdEl('bdResResps');
   box.innerHTML='';
-  if(!b.responses || !b.responses.length){
-    box.innerHTML='<div class="bd-empty">✅ アタック成功（防御なし）</div>';
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  if(!responses.length){
+    var bg = document.createElement('div');
+    bg.className = 'bd-result-badge success';
+    bg.innerHTML = '✅ アタック成功<span class="bd-rb-sub">防御なし</span>';
+    box.appendChild(bg);
   }else{
-    b.responses.forEach(function(r){
-      var row=document.createElement('div');
-      row.className='bd-resp-item';
-      row.innerHTML='<span>'+_bdRespLabel(r)+'</span>';
-      box.appendChild(row);
+    responses.forEach(function(r){
+      if(r.type==='counter'){
+        var bg = document.createElement('div');
+        bg.className = 'bd-result-badge counter';
+        bg.innerHTML = '🛡 カウンター使用 +'+r.value;
+        box.appendChild(bg);
+        // 使用カードサムネイル
+        var raw = r.cards;
+        if(raw && !Array.isArray(raw)) raw = Object.values(raw);
+        if(Array.isArray(raw) && raw.length){
+          var cwrap = document.createElement('div');
+          cwrap.className = 'bd-result-cards';
+          raw.forEach(function(card){
+            var th = document.createElement('div');
+            th.className = 'bd-rc-thumb';
+            if(card.img){
+              var img=document.createElement('img'); img.src=card.img; img.alt=card.name||''; th.appendChild(img);
+            }
+            cwrap.appendChild(th);
+          });
+          box.appendChild(cwrap);
+        }
+      }else if(r.type==='event'){
+        var bg = document.createElement('div');
+        bg.className = 'bd-result-badge event';
+        var sub = (r.cost && r.cost>0) ? ('ドン使用: '+r.cost+'枚') : '';
+        bg.innerHTML = '🎴 イベントカウンター +'+r.value + (sub ? '<span class="bd-rb-sub">'+sub+'</span>' : '');
+        box.appendChild(bg);
+      }else if(r.type==='blocker'){
+        var bg = document.createElement('div');
+        bg.className = 'bd-result-badge block';
+        bg.innerHTML = '🛡 ブロック防御<span class="bd-rb-sub">ブロッカーで受ける</span>';
+        box.appendChild(bg);
+      }
     });
   }
   if(b.memo){
