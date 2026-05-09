@@ -397,6 +397,8 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-bar-btn.blocker{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.08);color:#ffd54a;}
 .bd-bar-btn.toggle{margin-left:auto;background:rgba(255,255,255,.06);color:#aab;border-color:rgba(255,255,255,.18);font-size:13px;padding:6px 9px;}
 .bd-bar-btn.confirm-attacker{background:linear-gradient(135deg,#5b21b6,#a78bfa);color:#fff;border-color:#a78bfa;}
+/* ★ v3.14.0: アタック宣言を取消すボタン（応答待ち中のみ表示） */
+.bd-bar-btn.cancel-decl{background:linear-gradient(135deg,#6b1414,#a31818);color:#fff;border-color:#dc2626;font-weight:900;}
 /* ★ v3.11.0: バーのカウンターステッパー */
 .bd-bar-counter-label{font-size:11px;color:#aab;letter-spacing:1px;flex-shrink:0;padding-left:4px;}
 .bd-bar-btn.counter-step{padding:8px 12px;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#ef4444;font-weight:900;flex-shrink:0;}
@@ -1110,7 +1112,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.13.0</div>
+    <div class="logo-ver">BATTLE v3.14.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1126,7 +1128,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.13.0</div>
+    <div class="logo-ver">BATTLE v3.14.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1145,7 +1147,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.13.0</div>
+    <div class="logo-ver">BATTLE v3.14.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1168,7 +1170,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.13.0</div>
+    <div class="logo-ver">BATTLE v3.14.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1188,7 +1190,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.13.0</div>
+    <div class="logo-ver">BATTLE v3.14.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1586,6 +1588,8 @@ function fbStartListen() {
     <div class="bd-bar-row bd-bar-only">
       <span class="bd-bar-power" id="bdResBarPower">⚔ ―</span>
       <span id="bdResBarSummary" style="font-size:12px;color:#bcd;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📡 応答待ち...</span>
+      <!-- ★ v3.14.0: 応答待ち中だけ表示する取消ボタン -->
+      <button class="bd-bar-btn cancel-decl" id="bdResBarCancel" style="display:none;">↩ 取消</button>
       <button class="bd-bar-btn confirm-attacker" id="bdResBarOk">✓ 確認</button>
       <button class="bd-bar-btn toggle"  id="bdResBarExpand">▼ 拡大</button>
     </div>
@@ -3864,6 +3868,9 @@ function bdOpenResultModal(b){
   _bdEl('bdResBarPower').textContent = _bdPowerBadge(b);
   // ★ v3.10.0: バー部分のサマリーテキスト（アタック成功/カウンター処理/ブロック処理）
   _bdEl('bdResBarSummary').textContent = _bdMakeBarSummary(b);
+  // ★ v3.14.0: 応答済みなので「取消」非表示、「✓確認」表示
+  _bdEl('bdResBarCancel').style.display = 'none';
+  _bdEl('bdResBarOk').style.display = '';
 
   var box=_bdEl('bdResResps');
   box.innerHTML='';
@@ -3902,6 +3909,26 @@ function bdConfirmResult(){
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
 }
+// ★ v3.14.0: アタック宣言の取消（応答待ちの間だけ有効）
+function bdCancelDeclare(){
+  if(!pendingBattle) return;
+  if(pendingBattle.phase !== 'awaiting_def'){
+    toast('⚠️ 既に応答済みなので取消できません');
+    return;
+  }
+  if(MY_ROLE !== pendingBattle.atkRole){
+    toast('⚠️ 攻撃側のみ取消できます');
+    return;
+  }
+  saveState();
+  pendingBattle = null;
+  _bdSeenId = null;
+  _bdHideOverlay();
+  try{ arrowRender(); }catch(e){}
+  toast('↩ アタック宣言を取消しました');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
 function bdReshowCurrent(){
   // モーダルを誤って閉じた場合、現在のフェーズに応じて再表示
   if(!pendingBattle) return;
@@ -3916,6 +3943,9 @@ function bdReshowCurrent(){
       _bdEl('bdResResps').innerHTML = '<div class="bd-empty">📡 相手の応答待ち...</div>';
       _bdEl('bdResMemoSec').style.display='none';
       _bdEl('bdResMemo').style.display='none';
+      // ★ v3.14.0: 応答待ちなので「取消」表示、「✓確認」非表示
+      _bdEl('bdResBarCancel').style.display = '';
+      _bdEl('bdResBarOk').style.display = 'none';
       bdSetExpanded('bdResultPanel', false);
       _bdShowOnly('bdResultPanel');
       _bdShowOverlay();
@@ -4006,6 +4036,7 @@ function bdInitButtons(){
     ['bdDefExpEventCostDown', function(){ bdAddEventCost(-1); }],
     // 結果バーのボタン
     ['bdResBarOk',      bdConfirmResult],
+    ['bdResBarCancel',  bdCancelDeclare], // ★ v3.14.0
     ['bdResBarExpand',  function(){ bdSetExpanded('bdResultPanel', true); }],
     ['bdResCollapse',   function(){ bdSetExpanded('bdResultPanel', false); }]
   ];
