@@ -401,6 +401,11 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-bar-counter-label{font-size:11px;color:#aab;letter-spacing:1px;flex-shrink:0;padding-left:4px;}
 .bd-bar-btn.counter-step{padding:8px 12px;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#ef4444;font-weight:900;flex-shrink:0;}
 .bd-bar-counter-val{flex:1;min-width:60px;max-width:100px;background:#fff;border:1.5px solid rgba(239,68,68,.45);border-radius:6px;padding:8px;color:#ef4444;font-size:16px;font-weight:900;font-family:'Bebas Neue',sans-serif;text-align:center;letter-spacing:1px;box-sizing:border-box;}
+/* ★ v3.12.0: イベントカウンター（金色系） */
+.bd-bar-btn.event-step{padding:8px 12px;border-color:rgba(255,213,74,.55);background:rgba(255,213,74,.12);color:#ffd54a;font-weight:900;flex-shrink:0;}
+.bd-bar-event-val{flex:1;min-width:60px;max-width:100px;background:#fff;border:1.5px solid rgba(255,213,74,.55);border-radius:6px;padding:8px;color:#a17a18;font-size:16px;font-weight:900;font-family:'Bebas Neue',sans-serif;text-align:center;letter-spacing:1px;box-sizing:border-box;}
+.bd-step-btn.event-step{border-color:rgba(255,213,74,.55);background:rgba(255,213,74,.1);color:#ffd54a;}
+.bd-step-val.event-val{color:#a17a18;border-color:rgba(255,213,74,.45);}
 /* 拡大ポップアップ状態 */
 .bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -1105,7 +1110,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.11.0</div>
+    <div class="logo-ver">BATTLE v3.12.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1121,7 +1126,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.11.0</div>
+    <div class="logo-ver">BATTLE v3.12.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1140,7 +1145,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.11.0</div>
+    <div class="logo-ver">BATTLE v3.12.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1163,7 +1168,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.11.0</div>
+    <div class="logo-ver">BATTLE v3.12.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1183,7 +1188,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.11.0</div>
+    <div class="logo-ver">BATTLE v3.12.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1527,16 +1532,30 @@ function fbStartListen() {
       <input type="text" class="bd-bar-counter-val" id="bdDefBarCounterVal" value="1000" inputmode="numeric" maxlength="6">
       <button class="bd-bar-btn counter-step" id="bdDefBarCounterUp">+1K</button>
     </div>
+    <!-- ★ v3.12.0: イベントカードカウンターステッパー -->
+    <div class="bd-bar-row bd-bar-only" style="margin-top:6px;">
+      <span class="bd-bar-counter-label" style="color:#ffd54a;">🎴 イベント</span>
+      <button class="bd-bar-btn event-step" id="bdDefBarEventDown">−1K</button>
+      <input type="text" class="bd-bar-event-val" id="bdDefBarEventVal" value="0" inputmode="numeric" maxlength="6">
+      <button class="bd-bar-btn event-step" id="bdDefBarEventUp">+1K</button>
+    </div>
     <!-- 拡大ポップアップ部分 -->
     <div class="bd-section-only-expanded">
       <div class="bd-title"><span>⚠️ アタックを受けました</span><span class="bd-close" id="bdDefCollapse">▲ 折りたたむ</span></div>
       <div class="bd-sec">攻撃力</div>
       <div class="bd-readonly" id="bdDefSummary">―</div>
-      <div class="bd-sec">カウンター</div>
+      <div class="bd-sec">カウンター（手札）</div>
       <div class="bd-stepper">
         <button class="bd-step-btn" id="bdDefExpCounterDown">-1K</button>
         <input type="text" class="bd-step-val" id="bdDefExpCounterVal" value="1000" inputmode="numeric" maxlength="6">
         <button class="bd-step-btn" id="bdDefExpCounterUp">+1K</button>
+      </div>
+      <!-- ★ v3.12.0: イベントカウンター -->
+      <div class="bd-sec" style="color:#ffd54a;">🎴 イベントカード カウンター</div>
+      <div class="bd-stepper">
+        <button class="bd-step-btn event-step" id="bdDefExpEventDown">-1K</button>
+        <input type="text" class="bd-step-val event-val" id="bdDefExpEventVal" value="0" inputmode="numeric" maxlength="6">
+        <button class="bd-step-btn event-step" id="bdDefExpEventUp">+1K</button>
       </div>
       <div class="bd-sec">ブロッカー</div>
       <div class="bd-quick">
@@ -3468,11 +3487,12 @@ function _bdPowerBadge(b){
   return 'アタック '+b.atkPower;
 }
 function _bdRespLabel(r){
-  if(r.type==='counter') return '🛡 カウンター +'+r.value;
+  if(r.type==='counter') return '🛡 カウンター（手札）+'+r.value;
+  if(r.type==='event')   return '🎴 カウンター（イベント）+'+r.value; // ★ v3.12.0
   if(r.type==='blocker') return '🛡 ブロッカー宣言';
   return r.label || r.type;
 }
-// ★ v3.9.0 / v3.10.0: バトル解決後のサマリーテキスト
+// ★ v3.9.0 / v3.10.0 / v3.12.0: バトル解決後のサマリーテキスト
 function _bdMakeSummary(b){
   if(!b) return '';
   var role = b.atkRole==='p1' ? 'P1' : 'P2';
@@ -3480,32 +3500,38 @@ function _bdMakeSummary(b){
   var atk = '⚔ '+role+' '+atkPow;
   var responses = (b.responses||[]).slice();
   if(!Array.isArray(responses)) responses = Object.values(responses);
-  var counters = responses.filter(function(r){ return r.type==='counter'; });
-  var totalCounter = counters.reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
+  var totalCounter = responses.filter(function(r){return r.type==='counter';})
+                              .reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
+  var totalEvent   = responses.filter(function(r){return r.type==='event';})
+                              .reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
   var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
-  // ★ v3.10.0: 表記変更
-  //   応答なし → アタック成功
-  //   カウンターあり → カウンター処理 +<合計>
-  //   ブロックあり → ブロック処理
   var resultParts = [];
   if(hasBlocker) resultParts.push('🛡 ブロック処理');
   if(totalCounter>0) resultParts.push('🛡 カウンター処理 +'+totalCounter);
+  if(totalEvent>0)   resultParts.push('🎴 イベントカウンター +'+totalEvent);
   var resultText = resultParts.length ? resultParts.join(' / ') : '✅ アタック成功';
   var summary = atk + ' → ' + resultText;
+  // 合計値も表示（カウンター + イベント）
+  var grandTotal = totalCounter + totalEvent;
+  if(grandTotal>0 && (totalCounter>0 && totalEvent>0)){
+    summary += ' (合計+'+grandTotal+')';
+  }
   if(b.memo) summary += ' (📝 '+b.memo+')';
   return summary;
 }
-// ★ v3.10.0: 結果バー用の短いサマリー
 function _bdMakeBarSummary(b){
   if(!b) return '―';
   var responses = (b.responses||[]).slice();
   if(!Array.isArray(responses)) responses = Object.values(responses);
-  var counters = responses.filter(function(r){ return r.type==='counter'; });
-  var totalCounter = counters.reduce(function(s,r){ return s + (parseInt(r.value)||0); }, 0);
+  var totalCounter = responses.filter(function(r){return r.type==='counter';})
+                              .reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
+  var totalEvent   = responses.filter(function(r){return r.type==='event';})
+                              .reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
   var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
   var parts = [];
   if(hasBlocker) parts.push('🛡 ブロック処理');
-  if(totalCounter>0) parts.push('🛡 カウンター処理 +'+totalCounter);
+  if(totalCounter>0) parts.push('🛡 +'+totalCounter);
+  if(totalEvent>0)   parts.push('🎴 +'+totalEvent);
   var text = parts.length ? parts.join(' / ') : '✅ アタック成功';
   if(b.memo) text += ' 📝';
   return text;
@@ -3684,9 +3710,10 @@ function bdSubmitAttackDeclare(){
 // ── 防御応答モーダル（P2側）
 var _bdDefDraft = null; // {responses:[], memo:''}
 function bdOpenDefenseModal(b){
-  // ★ v3.11.0: シンプルなモデルに変更（counter:数値, blocker:bool, memo:文字列）
+  // ★ v3.11.0/v3.12.0: シンプルなモデル（counter:手札, event:イベント, blocker:bool, memo）
   _bdDefDraft = {
-    counter: 1000, // 初期1000
+    counter: 1000, // 手札カウンター初期1000
+    event:   0,    // イベントカウンター初期0（明示的に増やした時のみ送信）
     blocker: false,
     memo: b.memo || ''
   };
@@ -3699,14 +3726,20 @@ function bdOpenDefenseModal(b){
   _bdShowOverlay();
   safeVibrate([80,40,80,40,120]);
 }
-// ★ v3.11.0: ステッパー値とブロッカー状態をUIに反映
+// ★ v3.11.0/v3.12.0: ステッパー値とブロッカー状態をUIに反映
 function bdRenderDefDraft(){
   if(!_bdDefDraft) return;
   var v = String(_bdDefDraft.counter||0);
+  var ev = String(_bdDefDraft.event||0);
   var bar = _bdEl('bdDefBarCounterVal');
   var exp = _bdEl('bdDefExpCounterVal');
   if(bar) bar.value = v;
   if(exp) exp.value = v;
+  // ★ v3.12.0: イベントステッパー
+  var ebar = _bdEl('bdDefBarEventVal');
+  var eexp = _bdEl('bdDefExpEventVal');
+  if(ebar) ebar.value = ev;
+  if(eexp) eexp.value = ev;
   // ブロッカーボタンの状態表示
   ['bdDefBarBlocker','bdDefBlocker'].forEach(function(id){
     var b = _bdEl(id); if(!b) return;
@@ -3732,6 +3765,18 @@ function bdAddCounter(delta){
   if(!_bdDefDraft) return;
   bdSetCounter((_bdDefDraft.counter||0) + (parseInt(delta)||0));
 }
+// ★ v3.12.0: イベントカウンター
+function bdSetEvent(v){
+  if(!_bdDefDraft) return;
+  v = parseInt(v)||0;
+  if(v<0) v=0; if(v>99000) v=99000;
+  _bdDefDraft.event = v;
+  bdRenderDefDraft();
+}
+function bdAddEvent(delta){
+  if(!_bdDefDraft) return;
+  bdSetEvent((_bdDefDraft.event||0) + (parseInt(delta)||0));
+}
 function bdToggleBlocker(){
   if(!_bdDefDraft) return;
   _bdDefDraft.blocker = !_bdDefDraft.blocker;
@@ -3742,10 +3787,13 @@ function bdAddBlocker(){ bdToggleBlocker(); }
 function bdSubmitDefense(){
   if(!pendingBattle || !_bdDefDraft) return;
   saveState();
-  // ★ v3.11.0: シンプルモデル → 既存 responses[] 形式に変換して送信（後方互換）
+  // ★ v3.11.0/v3.12.0: シンプルモデル → 既存 responses[] 形式に変換
   var responses = [];
   if(_bdDefDraft.counter && _bdDefDraft.counter>0){
     responses.push({type:'counter', value:_bdDefDraft.counter});
+  }
+  if(_bdDefDraft.event && _bdDefDraft.event>0){
+    responses.push({type:'event', value:_bdDefDraft.event});
   }
   if(_bdDefDraft.blocker){
     responses.push({type:'blocker'});
@@ -3894,6 +3942,12 @@ function bdInitButtons(){
     // ★ v3.11.0: カウンターステッパー（拡大側）
     ['bdDefExpCounterUp',   function(){ bdAddCounter( 1000); }],
     ['bdDefExpCounterDown', function(){ bdAddCounter(-1000); }],
+    // ★ v3.12.0: イベントカウンターステッパー（バー側）
+    ['bdDefBarEventUp',   function(){ bdAddEvent( 1000); }],
+    ['bdDefBarEventDown', function(){ bdAddEvent(-1000); }],
+    // ★ v3.12.0: イベントカウンターステッパー（拡大側）
+    ['bdDefExpEventUp',   function(){ bdAddEvent( 1000); }],
+    ['bdDefExpEventDown', function(){ bdAddEvent(-1000); }],
     // 結果バーのボタン
     ['bdResBarOk',      bdConfirmResult],
     ['bdResBarExpand',  function(){ bdSetExpanded('bdResultPanel', true); }],
@@ -3908,9 +3962,18 @@ function bdInitButtons(){
     el.addEventListener('input', function(){
       var v=parseInt((el.value||'0').replace(/[^\d]/g,''))||0;
       if(_bdDefDraft) _bdDefDraft.counter = Math.max(0, Math.min(99000, v));
-      // 反対側のフィールドにも同期（フォーカス中は自分自身を再代入しない）
       var other = id==='bdDefBarCounterVal' ? _bdEl('bdDefExpCounterVal') : _bdEl('bdDefBarCounterVal');
       if(other && document.activeElement!==other) other.value = String(_bdDefDraft? _bdDefDraft.counter : v);
+    });
+  });
+  // ★ v3.12.0: イベント値の直接入力
+  ['bdDefBarEventVal','bdDefExpEventVal'].forEach(function(id){
+    var el=_bdEl(id); if(!el || el._bdBound) return; el._bdBound=true;
+    el.addEventListener('input', function(){
+      var v=parseInt((el.value||'0').replace(/[^\d]/g,''))||0;
+      if(_bdDefDraft) _bdDefDraft.event = Math.max(0, Math.min(99000, v));
+      var other = id==='bdDefBarEventVal' ? _bdEl('bdDefExpEventVal') : _bdEl('bdDefBarEventVal');
+      if(other && document.activeElement!==other) other.value = String(_bdDefDraft? _bdDefDraft.event : v);
     });
   });
   // ★ v3.9.0: 攻撃力 ± ステッパー
