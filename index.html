@@ -456,6 +456,19 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-bar-power.result-counter{background:rgba(34,211,238,.18);color:#22d3ee;border-color:rgba(34,211,238,.55);}
 .bd-bar-power.result-event{background:rgba(255,213,74,.18);color:#ffd54a;border-color:rgba(255,213,74,.55);}
 .bd-bar-power.result-block{background:rgba(239,68,68,.2);color:#ef4444;border-color:rgba(239,68,68,.6);}
+/* ★ v3.20.0: 手動リセット FAB + 確認モーダル */
+#btnManualReset{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:44px;height:44px;border-radius:50%;border:2px solid rgba(239,68,68,.85);background:rgba(40,10,10,.92);color:#ef4444;font-size:20px;cursor:pointer;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,.6),0 0 0 1px rgba(239,68,68,.4);font-family:inherit;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+#btnManualReset:active{transform:scale(.92);background:rgba(60,15,15,.95);}
+#manualResetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999998;display:none;align-items:center;justify-content:center;padding:14px;}
+#manualResetOverlay.show{display:flex;}
+#manualResetPanel{width:100%;max-width:340px;background:linear-gradient(180deg,#1a0d0d,#240f0f);border:2px solid rgba(239,68,68,.6);border-radius:14px;padding:18px 20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.7);}
+#manualResetPanel .mr-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#ef4444;margin-bottom:10px;}
+#manualResetPanel .mr-body{font-size:14px;line-height:1.7;color:#fff;margin-bottom:16px;}
+#manualResetPanel .mr-note{font-size:11px;color:#aab;}
+#manualResetPanel .mr-btns{display:flex;gap:8px;}
+#manualResetPanel .mr-btn{flex:1;padding:11px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+#manualResetPanel .mr-btn.cancel{background:rgba(255,255,255,.1);color:#aab;}
+#manualResetPanel .mr-btn.ok{background:linear-gradient(135deg,#7c1d1d,#dc2626);color:#fff;box-shadow:0 3px 12px rgba(220,38,38,.4);}
 /* 拡大ポップアップ状態 */
 .bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -1160,7 +1173,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.1</div>
+    <div class="logo-ver">BATTLE v3.20.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1176,7 +1189,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.1</div>
+    <div class="logo-ver">BATTLE v3.20.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1195,7 +1208,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.1</div>
+    <div class="logo-ver">BATTLE v3.20.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1218,7 +1231,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.1</div>
+    <div class="logo-ver">BATTLE v3.20.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1238,7 +1251,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.1</div>
+    <div class="logo-ver">BATTLE v3.20.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1684,6 +1697,23 @@ function fbStartListen() {
     <div class="ae-btns">
       <button class="ae-btn ae-del" id="aeDel">🗑 削除</button>
       <button class="ae-btn ae-ok"  id="aeOk">✓ 適用</button>
+    </div>
+  </div>
+</div>
+
+<!-- ★ v3.20.0: 手動リセットFAB（バトル画面で常時表示、全ポップアップの上） -->
+<button id="btnManualReset" type="button" title="手動リセット" style="display:none;">🔄</button>
+<!-- 手動リセット 確認モーダル -->
+<div id="manualResetOverlay" style="display:none;">
+  <div id="manualResetPanel">
+    <div class="mr-title">🔄 手動リセット</div>
+    <div class="mr-body">
+      バトル状態を初期化します。<br>
+      <span class="mr-note">アタック宣言・防御中の入力・矢印が消えます。<br>(Undoで元に戻せます)</span>
+    </div>
+    <div class="mr-btns">
+      <button class="mr-btn cancel" id="mrCancel">いいえ</button>
+      <button class="mr-btn ok"     id="mrOk">はい、リセット</button>
     </div>
   </div>
 </div>
@@ -2649,6 +2679,11 @@ function showScr(id){
     el.style.cssText='display:flex !important;visibility:visible;z-index:10;position:fixed;inset:0;flex-direction:column;background:var(--bg);';
   }
   if(id==='scrHand' && ihBbar) ihBbar.style.removeProperty('display');
+  // ★ v3.20.0: scrBattle にいる時だけリセットFABを表示
+  try{
+    var rb = document.getElementById('btnManualReset');
+    if(rb) rb.style.display = (id==='scrBattle') ? 'flex' : 'none';
+  }catch(e){}
 }
 
 // ══════ ユーティリティ：Safari iPhone 二重発火防止バインド ══════
@@ -4367,6 +4402,37 @@ function bdOnFirebaseSync(snap){
   }
   // ★ v3.7.0: 赤アローの再描画
   try{ arrowRender(); }catch(e){}
+}
+
+// ★ v3.20.0: 手動リセット — 想定外で固まった時に強制クリア
+function manualResetBattleState(){
+  try{ saveState(); }catch(e){}
+  // pendingBattle / 防御ドラフト / 攻撃宣言中のアンカー を全消去
+  try{ pendingBattle = null; }catch(e){}
+  try{ _bdSeenId = null; }catch(e){}
+  try{ _bdDefDraft = null; }catch(e){}
+  try{ _bdPendingFrom = null; _bdPendingTo = null; }catch(e){}
+  // 全ポップアップを閉じる
+  try{ _bdHideOverlay(); }catch(e){}
+  try{ document.getElementById('arrowEditOverlay').classList.remove('show'); }catch(e){}
+  // ⚔ ドラッグモード解除
+  try{ if(typeof battleMode!=='undefined' && battleMode){ bdExitMode(); } }catch(e){}
+  // 🏹 アローモード解除
+  try{ if(typeof arrowMode!=='undefined' && arrowMode){ arrowToggleMode(); } }catch(e){}
+  // アロー描画クリア
+  try{ arrowRender(); }catch(e){}
+  // ターンバーのバトルバッジパルス解除
+  try{ var bb=document.getElementById('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending'); }catch(e){}
+  // 同期
+  toast('🔄 バトル状態をリセットしました');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
+function manualResetOpen(){
+  document.getElementById('manualResetOverlay').classList.add('show');
+}
+function manualResetClose(){
+  document.getElementById('manualResetOverlay').classList.remove('show');
 }
 
 // ── 初期化（DOMContentLoaded で呼ぶ）
@@ -6899,6 +6965,13 @@ document.addEventListener('DOMContentLoaded',function(){
     bdToggleMode();
   });
   try{ bdInitButtons(); }catch(e){}
+  // ★ v3.20.0: 手動リセットFAB + 確認モーダル
+  bindBtn('btnManualReset', manualResetOpen);
+  bindBtn('mrCancel', manualResetClose);
+  bindBtn('mrOk', function(){ manualResetClose(); manualResetBattleState(); });
+  // オーバーレイ外タップで閉じる
+  var mrOv = document.getElementById('manualResetOverlay');
+  if(mrOv){ mrOv.addEventListener('click', function(e){ if(e.target===mrOv) manualResetClose(); }); }
 
   // ✕ボタン → 確認モーダル
   bindBtn('btnExitBattle', function(){
