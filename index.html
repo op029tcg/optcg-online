@@ -1160,7 +1160,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.0</div>
+    <div class="logo-ver">BATTLE v3.19.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1176,7 +1176,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.0</div>
+    <div class="logo-ver">BATTLE v3.19.1</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1195,7 +1195,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.0</div>
+    <div class="logo-ver">BATTLE v3.19.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1218,7 +1218,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.0</div>
+    <div class="logo-ver">BATTLE v3.19.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1238,7 +1238,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.19.0</div>
+    <div class="logo-ver">BATTLE v3.19.1</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3933,7 +3933,8 @@ function bdRenderDefHand(){
     var cv = parseInt(c.counter)||0;
     var div = document.createElement('div');
     var isSelected = _bdDefDraft && _bdDefDraft.usedCards.some(function(u){ return u.id===c.id; });
-    div.className = 'bd-hand-thumb' + (cv>0 ? ' tappable':'') + (isSelected?' selected':'');
+    // ★ v3.19.1: カウンターの有無に関わらずタップ選択可能に（イベントカード対応）
+    div.className = 'bd-hand-thumb tappable' + (isSelected?' selected':'');
     if(c.img){
       var img=document.createElement('img'); img.src=c.img; img.alt=c.name||''; div.appendChild(img);
     }
@@ -3943,26 +3944,35 @@ function bdRenderDefHand(){
       badge.textContent = '+'+cv;
     }else{
       badge.className = 'bd-thumb-no-counter';
-      badge.textContent = '-';
+      badge.textContent = '🎴'; // ★ v3.19.1: イベントカード等は明確に表示
     }
     div.appendChild(badge);
     div.addEventListener('click', function(){
-      if(cv<=0){ toast('このカードはカウンター値がありません'); return; }
       if(!_bdDefDraft) return;
       var idx = _bdDefDraft.usedCards.findIndex(function(u){ return u.id===c.id; });
       if(idx >= 0){
-        // 選択解除 → カウンター値も減算
+        // 選択解除
         _bdDefDraft.usedCards.splice(idx, 1);
-        bdAddCounter(-cv);
-        toast('🛡 −'+cv+' を解除');
+        if(cv>0){
+          bdAddCounter(-cv);
+          toast('🛡 −'+cv+' を解除');
+        }else{
+          toast('🎴 カード選択を解除');
+        }
       }else{
-        // 選択追加 → カウンター値を加算
+        // 選択追加
         _bdDefDraft.usedCards.push({id:c.id, img:c.img||'', name:c.name||'', counter:cv});
-        bdAddCounter(cv);
-        if(_bdDefDraft.step==='choice') bdSetDefStep('counter');
-        toast('🛡 +'+cv+' を加算');
+        if(cv>0){
+          bdAddCounter(cv);
+          if(_bdDefDraft.step==='choice') bdSetDefStep('counter');
+          toast('🛡 +'+cv+' を加算');
+        }else{
+          // イベントカード等(カウンター値なし) → 値はステッパーで手動設定
+          if(_bdDefDraft.step==='choice') bdSetDefStep('counter');
+          toast('🎴 カード選択 / イベント値とドン使用枚数を入力してください');
+        }
       }
-      bdRenderDefHand(); // 金枠表示更新
+      bdRenderDefHand();
     });
     box.appendChild(div);
   });
@@ -4058,16 +4068,25 @@ function bdSubmitDefense(){
   // ★ v3.17.0: 自動トラッシュ用に値を保存
   var trashCards = (_bdDefDraft.usedCards||[]).slice();
   var restDonCount = (_bdDefDraft.event && _bdDefDraft.event>0 && _bdDefDraft.eventCost>0) ? _bdDefDraft.eventCost : 0;
+  // ★ v3.19.1: 使用カードを「カウンター値あり/なし」で振り分け
+  //   counter>0 のカード → カウンター応答に添付（手札カウンター）
+  //   counter=0 のカード → イベント応答に添付（イベントカード）
+  var allCards = _bdDefDraft.usedCards || [];
+  var counterCards = allCards.filter(function(u){ return (parseInt(u.counter)||0) > 0; });
+  var eventCards   = allCards.filter(function(u){ return (parseInt(u.counter)||0) <= 0; });
   if(_bdDefDraft.counter && _bdDefDraft.counter>0){
     var co = {type:'counter', value:_bdDefDraft.counter};
-    if(_bdDefDraft.usedCards && _bdDefDraft.usedCards.length){
-      co.cards = _bdDefDraft.usedCards.map(function(u){ return {id:u.id, img:u.img, name:u.name, counter:u.counter}; });
+    if(counterCards.length){
+      co.cards = counterCards.map(function(u){ return {id:u.id, img:u.img, name:u.name, counter:u.counter}; });
     }
     responses.push(co);
   }
   if(_bdDefDraft.event && _bdDefDraft.event>0){
     var ev = {type:'event', value:_bdDefDraft.event};
     if(_bdDefDraft.eventCost && _bdDefDraft.eventCost>0) ev.cost = _bdDefDraft.eventCost;
+    if(eventCards.length){
+      ev.cards = eventCards.map(function(u){ return {id:u.id, img:u.img, name:u.name}; });
+    }
     responses.push(ev);
   }
   if(_bdDefDraft.blocker){
@@ -4087,7 +4106,7 @@ function bdSubmitDefense(){
   var trashedCount = _bdAutoTrashUsedCards(myPlayer, trashCards);
   var restedCount  = _bdAutoRestDon(myPlayer, restDonCount);
   var notes = [];
-  if(trashedCount>0) notes.push('🪦 カウンター札'+trashedCount+'枚をトラッシュへ');
+  if(trashedCount>0) notes.push('🪦 カード'+trashedCount+'枚をトラッシュへ');
   if(restedCount>0)  notes.push('🎴 ドン'+restedCount+'枚をレストに');
   toast('🛡 応答を送信しました' + (notes.length ? ' / ' + notes.join(' / ') : ''));
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
@@ -4184,6 +4203,22 @@ function bdOpenResultModal(b){
         var sub = (r.cost && r.cost>0) ? ('ドン使用: '+r.cost+'枚') : '';
         bg.innerHTML = '🎴 イベントカウンター +'+r.value + (sub ? '<span class="bd-rb-sub">'+sub+'</span>' : '');
         box.appendChild(bg);
+        // ★ v3.19.1: 使用イベントカードのサムネイル表示
+        var rawE = r.cards;
+        if(rawE && !Array.isArray(rawE)) rawE = Object.values(rawE);
+        if(Array.isArray(rawE) && rawE.length){
+          var ewrap = document.createElement('div');
+          ewrap.className = 'bd-result-cards';
+          rawE.forEach(function(card){
+            var th = document.createElement('div');
+            th.className = 'bd-rc-thumb';
+            if(card.img){
+              var img=document.createElement('img'); img.src=card.img; img.alt=card.name||''; th.appendChild(img);
+            }
+            ewrap.appendChild(th);
+          });
+          box.appendChild(ewrap);
+        }
       }else if(r.type==='blocker'){
         var bg = document.createElement('div');
         bg.className = 'bd-result-badge block';
