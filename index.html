@@ -451,6 +451,17 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-result-blocker .bd-rb-img img{width:100%;height:100%;object-fit:cover;display:block;}
 .bd-result-blocker .bd-rb-info{flex:1;color:#fff;font-size:13px;line-height:1.5;}
 .bd-result-blocker .bd-rb-info b{color:#ef4444;}
+/* ★ v3.21.0: ブロッカーKOチェックボックス */
+.bd-ko-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.35);border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.bd-ko-toggle input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:#ef4444;flex-shrink:0;}
+.bd-ko-toggle span{font-size:13px;color:#fff;line-height:1.4;}
+.bd-ko-note{font-size:11px;color:#8899aa;padding:4px 2px 0;}
+/* 結果モーダルのKOステータス */
+.bd-result-blocker.ko{background:rgba(220,38,38,.18);border-color:rgba(220,38,38,.7);}
+.bd-result-blocker.rest{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.5);}
+.bd-result-blocker .bd-rb-status{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:900;letter-spacing:1px;}
+.bd-result-blocker.ko .bd-rb-status{background:#dc2626;color:#fff;}
+.bd-result-blocker.rest .bd-rb-status{background:#22c55e;color:#0a0a0a;}
 /* ★ v3.18.0: 結果バッジの色クラス（bdResBarPower用） */
 .bd-bar-power.result-success{background:rgba(34,197,94,.18);color:#4ade80;border-color:rgba(34,197,94,.55);}
 .bd-bar-power.result-counter{background:rgba(34,211,238,.18);color:#22d3ee;border-color:rgba(34,211,238,.55);}
@@ -1173,7 +1184,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.20.0</div>
+    <div class="logo-ver">BATTLE v3.21.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1189,7 +1200,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.20.0</div>
+    <div class="logo-ver">BATTLE v3.21.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1208,7 +1219,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.20.0</div>
+    <div class="logo-ver">BATTLE v3.21.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1231,7 +1242,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.20.0</div>
+    <div class="logo-ver">BATTLE v3.21.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1251,7 +1262,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.20.0</div>
+    <div class="logo-ver">BATTLE v3.21.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1646,6 +1657,13 @@ function fbStartListen() {
         <input type="text" class="bd-step-val event-val" id="bdDefBlkEventCostVal" value="0" inputmode="numeric" maxlength="2">
         <button class="bd-step-btn event-step" id="bdDefBlkEventCostUp">+1</button>
       </div>
+      <!-- ★ v3.21.0: ブロッカー処理結果（KO or レスト） -->
+      <div class="bd-sec">ブロッカーの状態</div>
+      <label class="bd-ko-toggle">
+        <input type="checkbox" id="bdDefBlockerKO">
+        <span>🪦 ブロッカーKO（攻撃力 &gt; ブロッカー時 = トラッシュ送り）</span>
+      </label>
+      <div class="bd-ko-note">未チェックなら自動でレスト状態になります</div>
       <div class="bd-bar-row" style="margin-top:10px;">
         <button class="bd-bar-btn toggle" id="bdDefBackFromBlocker" style="flex:1;">← 戻る</button>
         <button class="bd-bar-btn accept" id="bdDefConfirmBlocker" style="flex:2;">✓ 確定</button>
@@ -3866,7 +3884,8 @@ function bdOpenDefenseModal(b){
     event:     0,
     eventCost: 0,
     blocker:   false,
-    blockerCard: null, // ★ v3.17.0: ブロックする側のキャラ
+    blockerCard: null,
+    blockerKO: false, // ★ v3.21.0: ブロッカーがKOされるか（トラッシュ送り）
     memo: b.memo || '',
     step: 'choice',
     usedCards: []
@@ -4031,6 +4050,9 @@ function bdRenderDefDraft(){
   _setIfNotFocused('bdDefBlkCounterVal',  v);
   _setIfNotFocused('bdDefBlkEventVal',    ev);
   _setIfNotFocused('bdDefBlkEventCostVal',ec);
+  // ★ v3.21.0: KO チェックボックスの状態を反映
+  var koEl = _bdEl('bdDefBlockerKO');
+  if(koEl) koEl.checked = !!_bdDefDraft.blockerKO;
 }
 function bdSetCounter(v){
   if(!_bdDefDraft) return;
@@ -4124,11 +4146,16 @@ function bdSubmitDefense(){
     }
     responses.push(ev);
   }
+  // ★ v3.21.0: 自動処理用にブロッカー情報を保存
+  var blockerCardForProcess = null;
+  var blockerKOFlag = false;
   if(_bdDefDraft.blocker){
     var bk = {type:'blocker'};
-    // ★ v3.17.0: ブロッカーキャラ情報を含める
     if(_bdDefDraft.blockerCard) bk.card = _bdDefDraft.blockerCard;
+    if(_bdDefDraft.blockerKO){ bk.ko = true; }
     responses.push(bk);
+    blockerCardForProcess = _bdDefDraft.blockerCard;
+    blockerKOFlag = !!_bdDefDraft.blockerKO;
   }
   pendingBattle.phase = 'resolving';
   pendingBattle.responses = responses;
@@ -4140,9 +4167,13 @@ function bdSubmitDefense(){
   var myPlayer = MY_ROLE==='p2' ? 'p2' : 'p1';
   var trashedCount = _bdAutoTrashUsedCards(myPlayer, trashCards);
   var restedCount  = _bdAutoRestDon(myPlayer, restDonCount);
+  // ★ v3.21.0: ブロッカー自動処理（KO→トラッシュ / 生存→レスト）
+  var blockerResult = _bdAutoProcessBlocker(myPlayer, blockerCardForProcess, blockerKOFlag);
   var notes = [];
   if(trashedCount>0) notes.push('🪦 カード'+trashedCount+'枚をトラッシュへ');
   if(restedCount>0)  notes.push('🎴 ドン'+restedCount+'枚をレストに');
+  if(blockerResult==='ko')   notes.push('🪦 ブロッカーをトラッシュへ');
+  if(blockerResult==='rest') notes.push('🛡 ブロッカーをレストに');
   toast('🛡 応答を送信しました' + (notes.length ? ' / ' + notes.join(' / ') : ''));
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
@@ -4179,6 +4210,28 @@ function _bdAutoRestDon(player, count){
   ds.rest += actual;
   try{ renderDonState(player); }catch(e){}
   return actual;
+}
+// ★ v3.21.0: ブロッカーの自動処理（KO→トラッシュ / 生存→レスト）
+function _bdAutoProcessBlocker(player, blockerCard, ko){
+  if(!blockerCard || !blockerCard.id) return null;
+  if(typeof testCards === 'undefined') return null;
+  var c = testCards.find(function(x){ return x && x.id === blockerCard.id; });
+  if(!c) return null;
+  // リーダーゾーン(loc='leader_*')はブロッカーになり得ないので念のためスキップしない（ルール解釈は手動）
+  if(ko){
+    // KO: トラッシュ送り
+    c.loc = 'trash_' + player;
+    c.rested = false;
+    if(typeof _trashAdd === 'function') _trashAdd(player, c);
+    try{ renderHand(); }catch(e){}
+    try{ renderField(); }catch(e){}
+    return 'ko';
+  } else {
+    // 生存: レスト状態にして場に残す
+    c.rested = true;
+    try{ renderField(); }catch(e){}
+    return 'rest';
+  }
 }
 
 // ── 結果通知モーダル（P1側）
@@ -4257,12 +4310,15 @@ function bdOpenResultModal(b){
       }else if(r.type==='blocker'){
         var bg = document.createElement('div');
         bg.className = 'bd-result-badge block';
-        bg.innerHTML = '🛡 ブロック防御<span class="bd-rb-sub">ブロッカーで受ける</span>';
+        // ★ v3.21.0: KO/レストのサブラベル
+        var subLabel = r.ko ? '🪦 KO → トラッシュへ' : '🛡 生存 → レスト';
+        bg.innerHTML = '🛡 ブロック防御<span class="bd-rb-sub">'+subLabel+'</span>';
         box.appendChild(bg);
-        // ★ v3.17.0: ブロッカーキャラ情報を表示
+        // ブロッカーキャラ情報を表示
         if(r.card && (r.card.img || r.card.name)){
           var bk = document.createElement('div');
-          bk.className = 'bd-result-blocker';
+          // ★ v3.21.0: KO/restで枠色変更
+          bk.className = 'bd-result-blocker ' + (r.ko ? 'ko' : 'rest');
           var imgWrap = document.createElement('div');
           imgWrap.className = 'bd-rb-img';
           if(r.card.img){
@@ -4272,7 +4328,8 @@ function bdOpenResultModal(b){
           info.className = 'bd-rb-info';
           var nm = r.card.name || 'ブロッカー';
           var pw = r.card.power ? '<b>'+r.card.power+'</b>' : '';
-          info.innerHTML = '<div>'+nm+'</div>' + (pw ? '<div style="font-size:11px;opacity:.85;">パワー '+pw+'</div>' : '');
+          var status = r.ko ? '<span class="bd-rb-status">🪦 KO</span>' : '<span class="bd-rb-status">🛡 レスト</span>';
+          info.innerHTML = '<div>'+nm+'</div>' + (pw ? '<div style="font-size:11px;opacity:.85;">パワー '+pw+'</div>' : '') + status;
           bk.appendChild(imgWrap);
           bk.appendChild(info);
           box.appendChild(bk);
@@ -4501,6 +4558,14 @@ function bdInitButtons(){
       bdRenderDefDraft();
     });
   });
+  // ★ v3.21.0: ブロッカーKOチェックボックス
+  var koEl = _bdEl('bdDefBlockerKO');
+  if(koEl && !koEl._bdBound){
+    koEl._bdBound = true;
+    koEl.addEventListener('change', function(){
+      if(_bdDefDraft) _bdDefDraft.blockerKO = !!koEl.checked;
+    });
+  }
   // ★ v3.9.0: 攻撃力 ± ステッパー
   document.querySelectorAll('#bdAttackPanel .bd-step-btn').forEach(function(b){
     if(b._bdBound) return; b._bdBound=true;
