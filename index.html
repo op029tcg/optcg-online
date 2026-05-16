@@ -480,6 +480,29 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 #manualResetPanel .mr-btn{flex:1;padding:11px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
 #manualResetPanel .mr-btn.cancel{background:rgba(255,255,255,.1);color:#aab;}
 #manualResetPanel .mr-btn.ok{background:linear-gradient(135deg,#7c1d1d,#dc2626);color:#fff;box-shadow:0 3px 12px rgba(220,38,38,.4);}
+/* ★ v3.22.0: 解決後アクションボタン + トリガー確認モーダル */
+.bd-result-actions{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.bd-result-actions .bd-action-btn{padding:11px 12px;border-radius:10px;border:2px solid;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;gap:6px;}
+.bd-result-actions .bd-action-btn:disabled{opacity:.4;cursor:not-allowed;}
+.bd-result-actions .bd-action-btn.life{background:linear-gradient(135deg,rgba(34,197,94,.3),rgba(34,197,94,.15));border-color:rgba(34,197,94,.7);color:#4ade80;}
+.bd-result-actions .bd-action-btn.life:active{transform:scale(.97);}
+.bd-result-actions .bd-action-btn.ko  {background:linear-gradient(135deg,rgba(220,38,38,.3),rgba(220,38,38,.15));border-color:rgba(220,38,38,.7);color:#f87171;}
+.bd-result-actions .bd-action-btn.ko:active{transform:scale(.97);}
+.bd-result-actions .bd-action-done{padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#4ade80;font-size:12px;text-align:center;}
+#triggerConfirmOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9700;display:none;align-items:center;justify-content:center;padding:14px;}
+#triggerConfirmOverlay.show{display:flex;}
+#triggerConfirmPanel{width:100%;max-width:380px;background:linear-gradient(180deg,#101a30,#0a1428);border:2px solid rgba(255,213,74,.6);border-radius:14px;padding:18px 20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.7);}
+#triggerConfirmPanel .tc-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ffd54a;margin-bottom:12px;text-align:center;}
+#triggerConfirmPanel .tc-info{font-size:13px;color:#cde;margin-bottom:10px;}
+#triggerConfirmPanel .tc-card{display:flex;justify-content:center;margin:10px 0;}
+#triggerConfirmPanel .tc-card .tc-img{width:90px;height:126px;border-radius:8px;overflow:hidden;border:2px solid rgba(255,213,74,.6);background:#0d1835;}
+#triggerConfirmPanel .tc-card .tc-img img{width:100%;height:100%;object-fit:cover;display:block;}
+#triggerConfirmPanel .tc-card .tc-name{font-size:11px;color:#aab;text-align:center;margin-top:6px;}
+#triggerConfirmPanel .tc-question{font-size:14px;color:#fff;text-align:center;margin:10px 0;font-weight:700;}
+#triggerConfirmPanel .tc-btns{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+#triggerConfirmPanel .tc-btn{padding:12px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+#triggerConfirmPanel .tc-btn.use{background:linear-gradient(135deg,#a17a18,#ffd54a);color:#0a0a0a;}
+#triggerConfirmPanel .tc-btn.no {background:rgba(255,255,255,.1);color:#aab;}
 /* 拡大ポップアップ状態 */
 .bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
@@ -1184,7 +1207,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.21.0</div>
+    <div class="logo-ver">BATTLE v3.22.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1200,7 +1223,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.21.0</div>
+    <div class="logo-ver">BATTLE v3.22.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1219,7 +1242,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.21.0</div>
+    <div class="logo-ver">BATTLE v3.22.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1242,7 +1265,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.21.0</div>
+    <div class="logo-ver">BATTLE v3.22.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1262,7 +1285,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.21.0</div>
+    <div class="logo-ver">BATTLE v3.22.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1695,11 +1718,29 @@ function fbStartListen() {
       <div class="bd-readonly" id="bdResMine">―</div>
       <div class="bd-sec">相手の応答</div>
       <div class="bd-resp-list" id="bdResResps"></div>
+      <!-- ★ v3.22.0: 解決後アクションボタン（ライフ取得 / キャラKO） -->
+      <div class="bd-result-actions" id="bdResActions"></div>
       <div class="bd-sec" id="bdResMemoSec" style="display:none">相手のメモ</div>
       <div class="bd-readonly" id="bdResMemo" style="display:none"></div>
       <div class="bd-btns">
         <button class="bd-btn confirm" id="bdResOk">✓ 確認</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ★ v3.22.0: トリガー確認モーダル（防御側） -->
+<div id="triggerConfirmOverlay" style="display:none;">
+  <div id="triggerConfirmPanel">
+    <div class="tc-title">⚡ トリガー確認</div>
+    <div class="tc-body" id="tcBody">
+      <div class="tc-info">📥 P1からライフ取得要求。ライフ上1枚を公開しました。</div>
+      <div class="tc-card" id="tcCard"></div>
+      <div class="tc-question">このカードのトリガーを使用しますか?</div>
+    </div>
+    <div class="tc-btns">
+      <button class="tc-btn no"  id="tcNoTrigger">→ 使わない（手札へ）</button>
+      <button class="tc-btn use" id="tcUseTrigger">⚡ トリガー使用（手札へ）</button>
     </div>
   </div>
 </div>
@@ -4337,6 +4378,8 @@ function bdOpenResultModal(b){
       }
     });
   }
+  // ★ v3.22.0: 解決後アクションボタン表示
+  try{ bdRenderResultActions(b); }catch(e){}
   if(b.memo){
     _bdEl('bdResMemoSec').style.display='';
     _bdEl('bdResMemo').style.display='';
@@ -4350,6 +4393,184 @@ function bdOpenResultModal(b){
   _bdShowOverlay();
   safeVibrate([40,30,40]); // ★ v3.9.0: 攻撃側に応答到着の合図
 }
+// ★ v3.22.0: 解決後アクションボタン（ライフ取得 / キャラKO）
+function bdRenderResultActions(b){
+  var box = _bdEl('bdResActions'); if(!box) return;
+  box.innerHTML = '';
+  if(!b || !b.toAnchor) return;
+  // 攻撃成功の判定: blocker応答がない or blockerKO(ブロッカー死) なら攻撃が通る
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
+  var attackPassed = !blockerResp || blockerResp.ko === true;
+  if(!attackPassed) return; // ブロッカー生存ならスキップ
+  // 既に処理済みのフラグをチェック
+  var done = b.actionDone || {};
+  var t = b.toAnchor;
+  // リーダー攻撃 → ライフ取得ボタン
+  if(t.zone==='p1LeaderZone' || t.zone==='p2LeaderZone'){
+    var btn = document.createElement('button');
+    btn.className = 'bd-action-btn life';
+    btn.innerHTML = '📥 ライフ-1取得 / トリガー確認';
+    if(done.lifeTaken){
+      btn.disabled = true;
+      btn.innerHTML = '✅ ライフ取得済み';
+    }else{
+      btn.addEventListener('click', function(){ bdRequestLifeTake(); });
+    }
+    box.appendChild(btn);
+  }
+  // キャラ攻撃 → KOボタン
+  if(t.zone==='cslot' && t.player && t.idx!=null){
+    var btn2 = document.createElement('button');
+    btn2.className = 'bd-action-btn ko';
+    btn2.innerHTML = '🪦 対象キャラをKO（トラッシュへ）';
+    if(done.charKO){
+      btn2.disabled = true;
+      btn2.innerHTML = '✅ KO処理済み';
+    }else{
+      btn2.addEventListener('click', function(){ bdRequestCharKO(); });
+    }
+    box.appendChild(btn2);
+  }
+}
+
+// ★ v3.22.0: ライフ取得リクエスト（攻撃側→防御側）
+function bdRequestLifeTake(){
+  if(!pendingBattle) return;
+  // フラグセット → FB同期 → 防御側で処理
+  pendingBattle.actionDone = pendingBattle.actionDone || {};
+  pendingBattle.actionDone.lifeTaken = true; // attacker側で先にONして再押下を防ぐ
+  pendingBattle.pendingAction = 'lifeTake';
+  pendingBattle.pendingActionTs = Date.now();
+  bdRenderResultActions(pendingBattle); // 即時ボタン更新
+  saveState();
+  toast('📥 ライフ取得を依頼しました');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
+// ★ v3.22.0: キャラKOリクエスト（攻撃側）
+function bdRequestCharKO(){
+  if(!pendingBattle) return;
+  pendingBattle.actionDone = pendingBattle.actionDone || {};
+  pendingBattle.actionDone.charKO = true;
+  pendingBattle.pendingAction = 'charKO';
+  pendingBattle.pendingActionTs = Date.now();
+  bdRenderResultActions(pendingBattle);
+  saveState();
+  toast('🪦 キャラKOを依頼しました');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
+
+// ★ v3.22.0: 防御側でアクションリクエストを処理
+function bdHandleDefenderAction(b){
+  if(!b || !b.pendingAction) return;
+  var defRole = b.atkRole==='p1' ? 'p2' : 'p1';
+  if(MY_ROLE !== defRole) return; // 防御側のみ実行
+  // 同じアクションを2回処理しないようにIDで管理
+  if(_bdHandledActionId === b.id + '_' + b.pendingActionTs) return;
+  _bdHandledActionId = b.id + '_' + b.pendingActionTs;
+  if(b.pendingAction === 'lifeTake'){
+    bdDefenderHandleLifeTake(b, defRole);
+  } else if(b.pendingAction === 'charKO'){
+    bdDefenderHandleCharKO(b, defRole);
+  }
+}
+var _bdHandledActionId = null;
+
+// 防御側: ライフ取得 - 一番上のライフを公開してトリガー確認モーダル表示
+function bdDefenderHandleLifeTake(b, defRole){
+  saveState();
+  // 一番上のライフカードデータ取得
+  var lifeFaces = lifeCardFace[defRole]||[];
+  if(!lifeFaces.length){
+    toast('⚠️ ライフがありません'); return;
+  }
+  var topData = (lifeCardsData[defRole]||[])[0] || {};
+  // ライフカードを表向きに
+  lifeFaces[0] = true;
+  try{ renderLifeMarks(defRole+'LifeMarks', lifeFaces.length); }catch(e){}
+  // トリガー確認モーダル表示
+  bdOpenTriggerConfirm(topData);
+  safeVibrate([60,40,60]);
+}
+// 防御側: キャラKO処理 - 対象キャラをトラッシュへ
+function bdDefenderHandleCharKO(b, defRole){
+  if(!b.toAnchor || b.toAnchor.zone!=='cslot') return;
+  var targetLoc = 'field_'+b.toAnchor.player+'_'+b.toAnchor.idx;
+  var i = testCards.findIndex(function(x){ return x && x.loc===targetLoc; });
+  if(i<0){
+    toast('⚠️ 対象キャラが見つかりません'); return;
+  }
+  saveState();
+  var c = testCards[i];
+  c.loc = 'trash_'+defRole;
+  c.rested = false;
+  if(typeof _trashAdd === 'function') _trashAdd(defRole, c);
+  try{ renderHand(); }catch(e){}
+  try{ renderField(); }catch(e){}
+  toast('🪦 ' + (c.name||'キャラ') + ' をトラッシュへ');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+}
+
+// トリガー確認モーダル
+var _bdTriggerCardData = null;
+function bdOpenTriggerConfirm(cardData){
+  _bdTriggerCardData = cardData || {};
+  var ov = _bdEl('triggerConfirmOverlay');
+  var cardBox = _bdEl('tcCard');
+  if(cardBox){
+    cardBox.innerHTML = '';
+    var wrap = document.createElement('div');
+    var img = document.createElement('div'); img.className='tc-img';
+    if(_bdTriggerCardData.img){
+      var i=document.createElement('img'); i.src=_bdTriggerCardData.img; i.alt=_bdTriggerCardData.name||''; img.appendChild(i);
+    }
+    wrap.appendChild(img);
+    var nm = document.createElement('div'); nm.className='tc-name';
+    nm.textContent = _bdTriggerCardData.name || '（裏面の情報なし）';
+    wrap.appendChild(nm);
+    cardBox.appendChild(wrap);
+  }
+  ov.classList.add('show');
+}
+function bdCloseTriggerConfirm(){
+  _bdEl('triggerConfirmOverlay').classList.remove('show');
+  _bdTriggerCardData = null;
+}
+function bdFinishLifeTake(usedTrigger){
+  if(!pendingBattle) return;
+  var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
+  var cardData = _bdTriggerCardData || {};
+  saveState();
+  // ライフ→手札 にカード移動
+  var faces = lifeCardFace[defRole]||[];
+  faces.splice(0, 1);
+  var ldata = (lifeCardsData[defRole]||[]).splice(0,1)[0] || {};
+  try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
+  // testCards に手札追加
+  var tcId = 'life_take_'+Date.now();
+  var handLoc = defRole==='p2' ? 'hand_p2' : 'hand';
+  testCards.push({
+    id:tcId, name:ldata.name||cardData.name||'LIFE', img:ldata.img||cardData.img||'',
+    power:ldata.power||'', cost:ldata.cost, counter:ldata.counter,
+    rested:false, donCount:0, loc:handLoc
+  });
+  try{ renderHand(); }catch(e){}
+  // 結果をpendingBattleに記録
+  pendingBattle.actionResult = {
+    type:'lifeTake',
+    usedTrigger: !!usedTrigger,
+    cardName: cardData.name || '',
+    cardImg:  cardData.img  || ''
+  };
+  pendingBattle.pendingAction = null;
+  bdCloseTriggerConfirm();
+  toast(usedTrigger ? '⚡ トリガー使用 / カードを手札へ' : '📥 ライフをそのまま手札へ');
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+}
+
 function bdConfirmResult(){
   // ★ v3.9.0: 解決サマリートースト（攻撃側）
   var summary = _bdMakeSummary(pendingBattle);
@@ -4442,8 +4663,19 @@ function bdOnFirebaseSync(snap){
       // 攻撃側: 応答が返ってきたら結果モーダル表示
       if(!prev || prev.phase !== 'resolving' || prev.id !== b.id){
         bdOpenResultModal(b);
+      }else{
+        // ★ v3.22.0: 既に開いている結果モーダルにアクション結果が来た場合
+        if(b.actionResult && (!prev.actionResult || prev.actionResult !== b.actionResult)){
+          try{ bdRenderResultActions(b); }catch(e){}
+          var ar = b.actionResult;
+          if(ar.type==='lifeTake'){
+            toast('📥 ライフ取得完了' + (ar.usedTrigger ? ' / ⚡ トリガー使用' : ' / トリガー未使用') + (ar.cardName ? ' / '+ar.cardName : ''));
+          }
+        }
       }
     }
+    // ★ v3.22.0: 防御側でアクションリクエストを処理
+    try{ bdHandleDefenderAction(b); }catch(e){}
   }else{
     // バトル終了 → 開いているモーダルを閉じる
     if(prev){
@@ -7037,6 +7269,9 @@ document.addEventListener('DOMContentLoaded',function(){
   // オーバーレイ外タップで閉じる
   var mrOv = document.getElementById('manualResetOverlay');
   if(mrOv){ mrOv.addEventListener('click', function(e){ if(e.target===mrOv) manualResetClose(); }); }
+  // ★ v3.22.0: トリガー確認モーダル
+  bindBtn('tcUseTrigger', function(){ bdFinishLifeTake(true);  });
+  bindBtn('tcNoTrigger',  function(){ bdFinishLifeTake(false); });
 
   // ✕ボタン → 確認モーダル
   bindBtn('btnExitBattle', function(){
