@@ -551,6 +551,15 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 .bd-route{background:rgba(0,0,0,.4);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.5;color:#fff;text-align:center;}
 .bd-route .bd-route-arrow{color:#ef4444;font-weight:900;margin:0 6px;}
 .bd-route b{color:#ffd54a;}
+/* ★ v3.24.0: ルート内のパワー値表示 */
+.bd-route .bd-route-power{color:#5bc8ff;font-weight:900;font-family:'Bebas Neue',sans-serif;font-size:15px;margin-left:4px;letter-spacing:1px;}
+/* ★ v3.24.0: アタック宣言時のフィールド赤フラッシュ */
+@keyframes attackFlash{
+  0%{box-shadow:inset 0 0 0 0 rgba(239,68,68,0);}
+  30%{box-shadow:inset 0 0 80px 14px rgba(239,68,68,.55);}
+  100%{box-shadow:inset 0 0 0 0 rgba(239,68,68,0);}
+}
+#scrBattle .bf.attack-flash{animation:attackFlash .6s ease-out;}
 #p1DonZone,#p2DonZone{cursor:grab;}
 #p1DonZone:active,#p2DonZone:active{cursor:grabbing;}
 .active-dons{display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;width:100%;height:100%;padding:2px;box-sizing:border-box;}
@@ -1207,7 +1216,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.23.0</div>
+    <div class="logo-ver">BATTLE v3.24.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1223,7 +1232,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.23.0</div>
+    <div class="logo-ver">BATTLE v3.24.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1242,7 +1251,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.23.0</div>
+    <div class="logo-ver">BATTLE v3.24.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1265,7 +1274,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.23.0</div>
+    <div class="logo-ver">BATTLE v3.24.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1285,7 +1294,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.23.0</div>
+    <div class="logo-ver">BATTLE v3.24.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3785,31 +3794,38 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
   _bdPendingFrom = fromAnchor;
   _bdPendingTo   = toAnchor;
   var panel = _bdEl('bdAttackPanel'); if(panel) panel.classList.add('simple');
-  // ルート表示
+  // ★ v3.24.0: ルート表示 — 攻撃元と対象のパワーも表示
   var route = _bdEl('bdAtkRoute');
   var sec   = _bdEl('bdAtkRouteSec');
+  var fromPow = _bdCalcAttackPower(fromAnchor);
+  var toPow   = _bdCalcAttackPower(toAnchor);
   if(route && sec){
     sec.style.display='';
     route.style.display='';
-    route.innerHTML='<b>'+bdAnchorLabel(fromAnchor)+'</b><span class="bd-route-arrow">⚔→</span><b>'+bdAnchorLabel(toAnchor)+'</b>';
+    route.innerHTML =
+      '<b>'+bdAnchorLabel(fromAnchor)+'</b> <span class="bd-route-power">('+fromPow+')</span>'+
+      '<span class="bd-route-arrow">⚔→</span>'+
+      '<b>'+bdAnchorLabel(toAnchor)+'</b> <span class="bd-route-power">('+toPow+')</span>';
   }
   _bdEl('bdAtkName').value='';
-  // ★ v3.23.0: 攻撃力を自動計算（攻撃元のパワー + DON付与）
-  var calcPow = _bdCalcAttackPower(fromAnchor);
-  _bdEl('bdAtkPower').value = String(calcPow);
+  _bdEl('bdAtkPower').value = String(fromPow);
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
+  // ★ v3.24.0: 対象がアクティブなキャラだったら注意トースト（ルール上は攻撃不可）
+  if(_bdAnchorIsActiveChar(toAnchor)){
+    toast('⚠️ 対象がアクティブなキャラです（通常は攻撃不可）');
+  }
   setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); _bdEl('bdAtkPower').select(); }catch(e){} }, 100);
 }
-// ★ v3.23.0: 攻撃元のパワー自動計算（基礎パワー + DON付与 + modPower）
-function _bdCalcAttackPower(fromAnchor){
-  if(!fromAnchor) return 5000;
+// ★ v3.23.0/v3.24.0: 攻撃元/対象 のパワー自動計算（基礎パワー + DON付与 + modPower）
+function _bdCalcAttackPower(anchor){
+  if(!anchor) return 5000;
   var loc = null;
-  if(fromAnchor.zone === 'p1LeaderZone') loc = 'leader_p1';
-  else if(fromAnchor.zone === 'p2LeaderZone') loc = 'leader_p2';
-  else if(fromAnchor.zone === 'cslot' && fromAnchor.player && fromAnchor.idx != null){
-    loc = 'field_'+fromAnchor.player+'_'+fromAnchor.idx;
+  if(anchor.zone === 'p1LeaderZone') loc = 'leader_p1';
+  else if(anchor.zone === 'p2LeaderZone') loc = 'leader_p2';
+  else if(anchor.zone === 'cslot' && anchor.player && anchor.idx != null){
+    loc = 'field_'+anchor.player+'_'+anchor.idx;
   }
   if(!loc) return 5000;
   if(typeof testCards === 'undefined') return 5000;
@@ -3822,11 +3838,20 @@ function _bdCalcAttackPower(fromAnchor){
     var p = loc.replace('leader_','');
     if(typeof donState !== 'undefined' && donState[p]) donAdd = (parseInt(donState[p].leader) || 0) * 1000;
   } else if(loc.indexOf('field_') === 0){
-    // char slot — testCards 側の donCount を参照（donState[p].char[idx] と同期しているはず）
     donAdd = (parseInt(tc.donCount) || 0) * 1000;
   }
   var total = base + donAdd + mod;
   return total > 0 ? total : 5000;
+}
+// ★ v3.24.0: anchor が指す対象がアクティブなキャラかどうか（リーダー以外、rested!=true）
+function _bdAnchorIsActiveChar(anchor){
+  if(!anchor) return false;
+  if(anchor.zone !== 'cslot') return false;
+  var loc = 'field_'+anchor.player+'_'+anchor.idx;
+  if(typeof testCards === 'undefined') return false;
+  var tc = testCards.find(function(c){ return c && c.loc === loc; });
+  if(!tc) return false;
+  return !tc.rested;
 }
 // ── バトルモード切替（ドラッグでアタック宣言）
 function bdToggleMode(){
@@ -3934,14 +3959,45 @@ function bdSubmitAttackDeclare(){
     responses: [], memo:'',
     ts: Date.now()
   };
+  // ★ v3.24.0: 攻撃キャラ/リーダーを自動でレストに
+  var fromForRest = pendingBattle.fromAnchor;
   _bdPendingFrom = null; _bdPendingTo = null;
   _bdSeenId = pendingBattle.id; // 自分の宣言は再表示しない
   _bdHideOverlay();
+  try{ _bdAutoRestAttacker(fromForRest); }catch(e){}
   try{ arrowRender(); }catch(e){} // 攻撃側にも赤アロー表示
-  safeVibrate(30); // ★ v3.9.0: 攻撃送信完了の合図
+  try{ _bdAttackFlash(); }catch(e){} // ★ v3.24.0: 視覚エフェクト
+  safeVibrate(50); // ★ v3.24.0: 強めの振動
   toast('⚔ アタック宣言を送信しました');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
+// ★ v3.24.0: 攻撃元キャラ/リーダーを自動でレスト状態に
+function _bdAutoRestAttacker(fromAnchor){
+  if(!fromAnchor) return;
+  if(fromAnchor.zone === 'p1LeaderZone' || fromAnchor.zone === 'p2LeaderZone'){
+    var player = fromAnchor.zone === 'p1LeaderZone' ? 'p1' : 'p2';
+    if(typeof ldrRested !== 'undefined') ldrRested[player] = true;
+    var lz = document.getElementById(player+'LeaderZone');
+    if(lz) lz.classList.add('ldr-rested');
+  } else if(fromAnchor.zone === 'cslot' && fromAnchor.player && fromAnchor.idx != null){
+    var loc = 'field_'+fromAnchor.player+'_'+fromAnchor.idx;
+    if(typeof testCards === 'undefined') return;
+    var c = testCards.find(function(x){ return x && x.loc === loc; });
+    if(c){
+      c.rested = true;
+      try{ renderField(); }catch(e){}
+    }
+  }
+}
+// ★ v3.24.0: アタック宣言時のフィールド赤フラッシュ
+function _bdAttackFlash(){
+  var bf = document.querySelector('#scrBattle .bf');
+  if(!bf) return;
+  bf.classList.remove('attack-flash');
+  void bf.offsetWidth;
+  bf.classList.add('attack-flash');
+  setTimeout(function(){ bf.classList.remove('attack-flash'); }, 600);
 }
 
 // ── 防御応答モーダル（P2側）
@@ -3968,6 +4024,7 @@ function bdOpenDefenseModal(b){
   _bdShowOnly('bdDefendPanel');
   _bdShowOverlay();
   document.getElementById('battleDeclareOverlay').classList.add('expanded');
+  try{ _bdAttackFlash(); }catch(e){} // ★ v3.24.0: 防御側にも赤フラッシュ
   safeVibrate([80,40,80,40,120]);
 }
 // ★ v3.19.0: 防御モーダルが開いていれば手札/ブロッカー/DON表示を更新
