@@ -560,6 +560,34 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
   100%{box-shadow:inset 0 0 0 0 rgba(239,68,68,0);}
 }
 #scrBattle .bf.attack-flash{animation:attackFlash .6s ease-out;}
+/* ★ v3.25.0: 攻撃カード情報ボックス（防御モーダル上部） */
+.bd-attacker-card{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:10px;background:linear-gradient(90deg,rgba(239,68,68,.18),rgba(239,68,68,.06));border:1.5px solid rgba(239,68,68,.55);border-radius:10px;}
+.bd-attacker-card .bda-img{width:54px;height:76px;border-radius:6px;overflow:hidden;border:2px solid rgba(239,68,68,.7);background:#0d1835;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+.bd-attacker-card .bda-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.bd-attacker-card .bda-info{flex:1;min-width:0;}
+.bd-attacker-card .bda-label{font-size:10px;color:#aab;letter-spacing:1px;text-transform:uppercase;}
+.bd-attacker-card .bda-name{font-size:14px;color:#fff;font-weight:700;line-height:1.3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bd-attacker-card .bda-power{color:#ef4444;font-weight:900;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;margin-top:2px;}
+/* ★ v3.25.0: モーダルのスライドイン アニメーション */
+@keyframes modalScaleIn{
+  from{opacity:0;transform:scale(.88);}
+  to{opacity:1;transform:scale(1);}
+}
+@keyframes modalSlideUp{
+  from{opacity:0;transform:translateY(20px) scale(.95);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+@keyframes overlayFadeIn{
+  from{background:rgba(0,0,0,0);}
+  to{background:rgba(0,0,0,.2);}
+}
+/* 防御・結果・攻撃宣言モーダル */
+#battleDeclareOverlay.show .bd-panel{animation:modalSlideUp .28s cubic-bezier(.16,1,.3,1);}
+#battleDeclareOverlay.show.expanded{animation:overlayFadeIn .25s ease-out;}
+/* 確認モーダル類 */
+#manualResetOverlay.show #manualResetPanel{animation:modalScaleIn .22s cubic-bezier(.16,1,.3,1);}
+#triggerConfirmOverlay.show #triggerConfirmPanel{animation:modalScaleIn .22s cubic-bezier(.16,1,.3,1);}
+#arrowEditOverlay.show #arrowEditPanel{animation:modalSlideUp .25s cubic-bezier(.16,1,.3,1);}
 #p1DonZone,#p2DonZone{cursor:grab;}
 #p1DonZone:active,#p2DonZone:active{cursor:grabbing;}
 .active-dons{display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;width:100%;height:100%;padding:2px;box-sizing:border-box;}
@@ -1216,7 +1244,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.24.0</div>
+    <div class="logo-ver">BATTLE v3.25.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1232,7 +1260,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.24.0</div>
+    <div class="logo-ver">BATTLE v3.25.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1251,7 +1279,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.24.0</div>
+    <div class="logo-ver">BATTLE v3.25.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1274,7 +1302,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.24.0</div>
+    <div class="logo-ver">BATTLE v3.25.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1294,7 +1322,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.24.0</div>
+    <div class="logo-ver">BATTLE v3.25.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1625,6 +1653,8 @@ function fbStartListen() {
 
   <!-- 防御応答パネル（受信側） -->
   <div class="bd-panel def" id="bdDefendPanel" style="display:none">
+    <!-- ★ v3.25.0: 攻撃カード情報（画像 + 名前 + パワー） -->
+    <div class="bd-attacker-card" id="bdDefAttackerCard" style="display:none;"></div>
     <!-- ★ v3.15.0: 共通ヘッダ（攻撃力） -->
     <div class="bd-bar-row" style="margin-bottom:8px;">
       <span class="bd-bar-power" id="bdDefBarPower">アタック ―</span>
@@ -3818,6 +3848,26 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
   }
   setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); _bdEl('bdAtkPower').select(); }catch(e){} }, 100);
 }
+// ★ v3.25.0: 攻撃元カードの情報(画像/名前/パワー)を取得
+function _bdGetAnchorCardInfo(anchor){
+  if(!anchor) return null;
+  var loc = null;
+  if(anchor.zone === 'p1LeaderZone') loc = 'leader_p1';
+  else if(anchor.zone === 'p2LeaderZone') loc = 'leader_p2';
+  else if(anchor.zone === 'cslot' && anchor.player && anchor.idx != null){
+    loc = 'field_'+anchor.player+'_'+anchor.idx;
+  }
+  if(!loc) return null;
+  if(typeof testCards === 'undefined') return null;
+  var tc = testCards.find(function(c){ return c && c.loc === loc; });
+  if(!tc) return null;
+  return {
+    img: tc.img || '',
+    name: tc.name || '',
+    power: _bdCalcAttackPower(anchor) // 計算後のパワー
+  };
+}
+
 // ★ v3.23.0/v3.24.0: 攻撃元/対象 のパワー自動計算（基礎パワー + DON付与 + modPower）
 function _bdCalcAttackPower(anchor){
   if(!anchor) return 5000;
@@ -3949,6 +3999,8 @@ function bdSubmitAttackDeclare(){
     if(!nm && !pw && !tg){ toast('内容を入力してください'); return; }
   }
   saveState();
+  // ★ v3.25.0: 攻撃元カードの情報（画像/名前）も同送、防御モーダルで表示
+  var atkCardInfo = _bdGetAnchorCardInfo(_bdPendingFrom);
   pendingBattle = {
     id:'bd_'+Date.now()+'_'+Math.floor(Math.random()*1000),
     phase:'awaiting_def',
@@ -3956,6 +4008,7 @@ function bdSubmitAttackDeclare(){
     atkName: nm, atkPower: pw, atkTarget: tg,
     fromAnchor: _bdPendingFrom||null, // ★ v3.7.0
     toAnchor:   _bdPendingTo||null,   // ★ v3.7.0
+    atkCard: atkCardInfo,             // ★ v3.25.0: 攻撃カード情報
     responses: [], memo:'',
     ts: Date.now()
   };
@@ -4016,6 +4069,8 @@ function bdOpenDefenseModal(b){
     usedCards: []
   };
   _bdEl('bdDefBarPower').textContent = _bdPowerBadge(b);
+  // ★ v3.25.0: 攻撃カード情報を表示
+  try{ _bdRenderAttackerCard(b); }catch(e){}
   var memoEl = _bdEl('bdDefMemo'); if(memoEl) memoEl.value = _bdDefDraft.memo;
   bdRenderDefDraft();
   bdSetDefStep('choice');
@@ -4038,6 +4093,28 @@ function bdRefreshIfOpen(){
 }
 
 // ★ v3.16.0: アクティブDON枚数の表示
+// ★ v3.25.0: 攻撃カード情報を描画（画像 + 名前 + パワー）
+function _bdRenderAttackerCard(b){
+  var box = _bdEl('bdDefAttackerCard'); if(!box) return;
+  if(!b || !b.atkCard){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  var c = b.atkCard;
+  var atkLabel = b.atkRole==='p1' ? 'P1' : 'P2';
+  var nm = c.name || (b.atkName || 'カード');
+  var pw = c.power || b.atkPower || '―';
+  box.style.display = '';
+  box.innerHTML = ''
+    + '<div class="bda-img">' + (c.img ? '<img src="'+c.img+'" alt="'+nm+'">' : '') + '</div>'
+    + '<div class="bda-info">'
+    +   '<div class="bda-label">'+atkLabel+' からの攻撃</div>'
+    +   '<div class="bda-name">'+nm+'</div>'
+    +   '<div class="bda-power">⚔ '+pw+'</div>'
+    + '</div>';
+}
+
 function bdRenderActiveDon(){
   var el = _bdEl('bdDefActiveDon'); if(!el) return;
   var p = MY_ROLE==='p2' ? 'p2' : 'p1';
