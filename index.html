@@ -492,7 +492,9 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 #triggerConfirmOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9700;display:none;align-items:center;justify-content:center;padding:14px;}
 #triggerConfirmOverlay.show{display:flex;}
 #triggerConfirmPanel{width:100%;max-width:380px;background:linear-gradient(180deg,#101a30,#0a1428);border:2px solid rgba(255,213,74,.6);border-radius:14px;padding:18px 20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.7);}
-#triggerConfirmPanel .tc-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ffd54a;margin-bottom:12px;text-align:center;}
+#triggerConfirmPanel .tc-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ffd54a;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+#triggerConfirmPanel .tc-close{cursor:pointer;font-size:18px;color:#aab;padding:2px 8px;-webkit-tap-highlight-color:transparent;letter-spacing:0;}
+#triggerConfirmPanel .tc-close:active{color:#fff;}
 #triggerConfirmPanel .tc-info{font-size:13px;color:#cde;margin-bottom:10px;}
 #triggerConfirmPanel .tc-card{display:flex;justify-content:center;margin:10px 0;}
 #triggerConfirmPanel .tc-card .tc-img{width:90px;height:126px;border-radius:8px;overflow:hidden;border:2px solid rgba(255,213,74,.6);background:#0d1835;}
@@ -562,7 +564,9 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 #scrBattle .bf.attack-flash{animation:attackFlash .6s ease-out;}
 /* ★ v3.25.0: 攻撃カード情報ボックス（防御モーダル上部） */
 .bd-attacker-card{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:10px;background:linear-gradient(90deg,rgba(239,68,68,.18),rgba(239,68,68,.06));border:1.5px solid rgba(239,68,68,.55);border-radius:10px;}
-.bd-attacker-card .bda-img{width:54px;height:76px;border-radius:6px;overflow:hidden;border:2px solid rgba(239,68,68,.7);background:#0d1835;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+.bd-attacker-card .bda-img{width:54px;height:76px;border-radius:6px;overflow:hidden;border:2px solid rgba(239,68,68,.7);background:#0d1835;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.4);position:relative;}
+/* ★ v3.26.3: 画像URL破損時のプレースホルダ */
+.bd-attacker-card .bda-img.no-img::after{content:'⚔';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(239,68,68,.6);font-size:28px;}
 .bd-attacker-card .bda-img img{width:100%;height:100%;object-fit:cover;display:block;}
 .bd-attacker-card .bda-info{flex:1;min-width:0;}
 .bd-attacker-card .bda-label{font-size:10px;color:#aab;letter-spacing:1px;text-transform:uppercase;}
@@ -1244,7 +1248,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.2</div>
+    <div class="logo-ver">BATTLE v3.26.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1260,7 +1264,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.2</div>
+    <div class="logo-ver">BATTLE v3.26.3</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1279,7 +1283,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.2</div>
+    <div class="logo-ver">BATTLE v3.26.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1302,7 +1306,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.2</div>
+    <div class="logo-ver">BATTLE v3.26.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1322,7 +1326,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.2</div>
+    <div class="logo-ver">BATTLE v3.26.3</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1771,7 +1775,8 @@ function fbStartListen() {
 <!-- ★ v3.22.0: トリガー確認モーダル（防御側） -->
 <div id="triggerConfirmOverlay" style="display:none;">
   <div id="triggerConfirmPanel">
-    <div class="tc-title">⚡ トリガー確認</div>
+    <!-- ★ v3.26.3: 右上の ✕ 閉じる(中断確認) -->
+    <div class="tc-title"><span>⚡ トリガー確認</span><span class="tc-close" id="tcAbort" title="中断">✕</span></div>
     <div class="tc-body" id="tcBody">
       <div class="tc-info">📥 P1からライフ取得要求。ライフ上1枚を公開しました。</div>
       <div class="tc-card" id="tcCard"></div>
@@ -4132,8 +4137,12 @@ function _bdRenderAttackerCard(b){
   var pw = _bdEscapeHTML(c.power || b.atkPower || '―');
   var imgUrl = _bdEscapeHTML(c.img || '');
   box.style.display = '';
+  // ★ v3.26.3: 画像URL破損時はプレースホルダ表示にフォールバック
+  var imgTag = c.img
+    ? '<img src="'+imgUrl+'" alt="'+nm+'" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'no-img\');">'
+    : '';
   box.innerHTML = ''
-    + '<div class="bda-img">' + (c.img ? '<img src="'+imgUrl+'" alt="'+nm+'">' : '') + '</div>'
+    + '<div class="bda-img'+(c.img?'':' no-img')+'">' + imgTag + '</div>'
     + '<div class="bda-info">'
     +   '<div class="bda-label">'+atkLabel+' からの攻撃</div>'
     +   '<div class="bda-name">'+nm+'</div>'
@@ -4769,6 +4778,25 @@ function bdCloseTriggerConfirm(){
   _bdEl('triggerConfirmOverlay').classList.remove('show');
   _bdTriggerCardData = null;
 }
+// ★ v3.26.3: トリガー確認の中断（防御側がキャンセル → 攻撃側に失敗を返す）
+function bdAbortTriggerConfirm(){
+  if(!confirm('ライフ取得処理を中断しますか?')) return;
+  if(pendingBattle){
+    // ライフは既に表向きにしたので戻す（テープルから一旦表→裏）
+    var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
+    var faces = lifeCardFace[defRole] || [];
+    if(faces.length && faces[0] === true){
+      faces[0] = false;
+      try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
+    }
+    // 攻撃側に「失敗（中断）」を返す
+    pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'aborted'};
+    pendingBattle.pendingAction = null;
+    if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  }
+  bdCloseTriggerConfirm();
+  toast('↩ トリガー確認を中断しました');
+}
 function bdFinishLifeTake(usedTrigger){
   if(!pendingBattle) return;
   var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
@@ -4840,6 +4868,7 @@ function bdCancelDeclare(){
   saveState();
   pendingBattle = null;
   _bdSeenId = null;
+  _bdHandledActionId = null; // ★ v3.26.3
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){}
   toast('↩ アタック宣言を取消しました');
@@ -4949,16 +4978,18 @@ function bdOnFirebaseSync(snap){
   try{ arrowRender(); }catch(e){}
 }
 
-// ★ v3.20.0: 手動リセット — 想定外で固まった時に強制クリア
+// ★ v3.20.0 / v3.26.3: 手動リセット — 想定外で固まった時に強制クリア
 function manualResetBattleState(){
   try{ saveState(); }catch(e){}
   // pendingBattle / 防御ドラフト / 攻撃宣言中のアンカー を全消去
   try{ pendingBattle = null; }catch(e){}
   try{ _bdSeenId = null; }catch(e){}
+  try{ _bdHandledActionId = null; }catch(e){} // ★ v3.26.3
   try{ _bdDefDraft = null; }catch(e){}
   try{ _bdPendingFrom = null; _bdPendingTo = null; }catch(e){}
   // 全ポップアップを閉じる
   try{ _bdHideOverlay(); }catch(e){}
+  try{ bdCloseTriggerConfirm(); }catch(e){} // ★ v3.26.3: トリガー確認モーダルも閉じる
   try{ document.getElementById('arrowEditOverlay').classList.remove('show'); }catch(e){}
   // ⚔ ドラッグモード解除
   try{ if(typeof battleMode!=='undefined' && battleMode){ bdExitMode(); } }catch(e){}
@@ -7539,6 +7570,7 @@ document.addEventListener('DOMContentLoaded',function(){
   // ★ v3.22.0: トリガー確認モーダル
   bindBtn('tcUseTrigger', function(){ bdFinishLifeTake(true);  });
   bindBtn('tcNoTrigger',  function(){ bdFinishLifeTake(false); });
+  bindBtn('tcAbort',      function(){ bdAbortTriggerConfirm(); }); // ★ v3.26.3
 
   // ✕ボタン → 確認モーダル
   bindBtn('btnExitBattle', function(){
