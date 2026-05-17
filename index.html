@@ -1244,7 +1244,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.0</div>
+    <div class="logo-ver">BATTLE v3.26.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1260,7 +1260,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.0</div>
+    <div class="logo-ver">BATTLE v3.26.1</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1279,7 +1279,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.0</div>
+    <div class="logo-ver">BATTLE v3.26.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1302,7 +1302,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.0</div>
+    <div class="logo-ver">BATTLE v3.26.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1322,7 +1322,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.0</div>
+    <div class="logo-ver">BATTLE v3.26.1</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3842,8 +3842,8 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
   _bdEl('bdAtkTarget').value='';
   _bdShowOnly('bdAttackPanel');
   _bdShowOverlay();
-  // ★ v3.24.0: 対象がアクティブなキャラだったら注意トースト（ルール上は攻撃不可）
-  if(_bdAnchorIsActiveChar(toAnchor)){
+  // ★ v3.24.0 / v3.26.1: 対象が「相手の」アクティブキャラだったら注意トースト（自分のキャラ誤指定は警告対象外）
+  if(toAnchor && toAnchor.zone==='cslot' && toAnchor.player && toAnchor.player !== (MY_ROLE||'p1') && _bdAnchorIsActiveChar(toAnchor)){
     toast('⚠️ 対象がアクティブなキャラです（通常は攻撃不可）');
   }
   setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); _bdEl('bdAtkPower').select(); }catch(e){} }, 100);
@@ -4393,11 +4393,17 @@ function _bdAutoTrashUsedCards(player, usedCards){
   if(!usedCards || !usedCards.length) return 0;
   if(typeof testCards === 'undefined') return 0;
   var trashed = 0;
+  // ★ v3.26.1: 防御側プレイヤーの手札に居る時だけトラッシュ送り（他ゾーンに移動済みなら触らない）
+  var validHandLocs = ['hand', 'hand_p2'];
   usedCards.forEach(function(uc){
     var i = testCards.findIndex(function(x){ return x && x.id === uc.id; });
-    if(i < 0) return;
+    if(i < 0) return; // 既に消えている
     var c = testCards[i];
-    var src = c.loc;
+    // 手札以外（既に動いてる）ならスキップ
+    if(validHandLocs.indexOf(c.loc) < 0){
+      console.warn('skip auto-trash: card moved already', c.id, c.loc);
+      return;
+    }
     c.loc = 'trash_' + player;
     c.rested = false;
     if(typeof _trashAdd === 'function') _trashAdd(player, c);
@@ -4573,18 +4579,27 @@ function bdRenderResultActions(b){
   var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
   var attackPassed = !blockerResp || blockerResp.ko === true;
   if(!attackPassed) return; // ブロッカー生存ならスキップ
-  // 既に処理済みのフラグをチェック
+  // ★ v3.26.1: 状態は actionDone (成功) / pendingAction (依頼中) / actionResult.failed (失敗) で判定
   var done = b.actionDone || {};
+  var ar = b.actionResult || {};
+  var pendingAct = b.pendingAction;
   var t = b.toAnchor;
   // リーダー攻撃 → ライフ取得ボタン
   if(t.zone==='p1LeaderZone' || t.zone==='p2LeaderZone'){
     var btn = document.createElement('button');
     btn.className = 'bd-action-btn life';
-    btn.innerHTML = '📥 ライフ-1取得 / トリガー確認';
     if(done.lifeTaken){
       btn.disabled = true;
       btn.innerHTML = '✅ ライフ取得済み';
+    }else if(pendingAct === 'lifeTake'){
+      btn.disabled = true;
+      btn.innerHTML = '⏳ 依頼中…';
+    }else if(ar && ar.type==='lifeTake' && ar.failed){
+      // 失敗時は再試行可能
+      btn.innerHTML = '⚠️ 失敗（再試行）';
+      btn.addEventListener('click', function(){ bdRequestLifeTake(); });
     }else{
+      btn.innerHTML = '📥 ライフ-1取得 / トリガー確認';
       btn.addEventListener('click', function(){ bdRequestLifeTake(); });
     }
     box.appendChild(btn);
@@ -4593,40 +4608,44 @@ function bdRenderResultActions(b){
   if(t.zone==='cslot' && t.player && t.idx!=null){
     var btn2 = document.createElement('button');
     btn2.className = 'bd-action-btn ko';
-    btn2.innerHTML = '🪦 対象キャラをKO（トラッシュへ）';
     if(done.charKO){
       btn2.disabled = true;
       btn2.innerHTML = '✅ KO処理済み';
+    }else if(pendingAct === 'charKO'){
+      btn2.disabled = true;
+      btn2.innerHTML = '⏳ 依頼中…';
+    }else if(ar && ar.type==='charKO' && ar.failed){
+      btn2.innerHTML = '⚠️ 失敗（再試行）';
+      btn2.addEventListener('click', function(){ bdRequestCharKO(); });
     }else{
+      btn2.innerHTML = '🪦 対象キャラをKO（トラッシュへ）';
       btn2.addEventListener('click', function(){ bdRequestCharKO(); });
     }
     box.appendChild(btn2);
   }
 }
 
-// ★ v3.22.0: ライフ取得リクエスト（攻撃側→防御側）
+// ★ v3.22.0 / v3.26.1: ライフ取得リクエスト（攻撃側→防御側）
 function bdRequestLifeTake(){
   if(!pendingBattle) return;
-  // フラグセット → FB同期 → 防御側で処理
-  pendingBattle.actionDone = pendingBattle.actionDone || {};
-  pendingBattle.actionDone.lifeTaken = true; // attacker側で先にONして再押下を防ぐ
+  saveState(); // ★ v3.26.1: 変更前にsaveState（Undoで元の状態に戻れるように）
+  // ★ v3.26.1: actionDone は防御側からの actionResult を受けてから ON にする
+  //            pendingAction は「保留中」を示すフラグ
   pendingBattle.pendingAction = 'lifeTake';
   pendingBattle.pendingActionTs = Date.now();
-  bdRenderResultActions(pendingBattle); // 即時ボタン更新
-  saveState();
+  // ボタンを一時的に「⏳ 依頼中…」表示にする
+  bdRenderResultActions(pendingBattle);
   toast('📥 ライフ取得を依頼しました');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
 }
-// ★ v3.22.0: キャラKOリクエスト（攻撃側）
+// ★ v3.22.0 / v3.26.1: キャラKOリクエスト（攻撃側）
 function bdRequestCharKO(){
   if(!pendingBattle) return;
-  pendingBattle.actionDone = pendingBattle.actionDone || {};
-  pendingBattle.actionDone.charKO = true;
+  saveState();
   pendingBattle.pendingAction = 'charKO';
   pendingBattle.pendingActionTs = Date.now();
   bdRenderResultActions(pendingBattle);
-  saveState();
   toast('🪦 キャラKOを依頼しました');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
   else if(typeof fbPushState==='function' && fbListening) fbPushState();
@@ -4654,7 +4673,14 @@ function bdDefenderHandleLifeTake(b, defRole){
   // 一番上のライフカードデータ取得
   var lifeFaces = lifeCardFace[defRole]||[];
   if(!lifeFaces.length){
-    toast('⚠️ ライフがありません'); return;
+    // ★ v3.26.1: 失敗フィードバックを返して攻撃側のボタン復旧を可能に
+    if(pendingBattle){
+      pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
+      pendingBattle.pendingAction = null;
+      if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+    }
+    toast('⚠️ ライフがありません');
+    return;
   }
   var topData = (lifeCardsData[defRole]||[])[0] || {};
   // ライフカードを表向きに
@@ -4670,7 +4696,14 @@ function bdDefenderHandleCharKO(b, defRole){
   var targetLoc = 'field_'+b.toAnchor.player+'_'+b.toAnchor.idx;
   var i = testCards.findIndex(function(x){ return x && x.loc===targetLoc; });
   if(i<0){
-    toast('⚠️ 対象キャラが見つかりません'); return;
+    // ★ v3.26.1: 失敗フィードバック
+    if(pendingBattle){
+      pendingBattle.actionResult = {type:'charKO', failed:true, reason:'not_found'};
+      pendingBattle.pendingAction = null;
+      if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+    }
+    toast('⚠️ 対象キャラが見つかりません（移動済みの可能性）');
+    return;
   }
   saveState();
   var c = testCards[i];
@@ -4679,6 +4712,13 @@ function bdDefenderHandleCharKO(b, defRole){
   if(typeof _trashAdd === 'function') _trashAdd(defRole, c);
   try{ renderHand(); }catch(e){}
   try{ renderField(); }catch(e){}
+  // ★ v3.26.1: 成功時も actionResult を返してactionDoneを後追いで設定
+  if(pendingBattle){
+    pendingBattle.actionResult = {type:'charKO', success:true, cardName:c.name||''};
+    pendingBattle.actionDone = pendingBattle.actionDone || {};
+    pendingBattle.actionDone.charKO = true;
+    pendingBattle.pendingAction = null;
+  }
   toast('🪦 ' + (c.name||'キャラ') + ' をトラッシュへ');
   if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
 }
@@ -4730,10 +4770,14 @@ function bdFinishLifeTake(usedTrigger){
   // 結果をpendingBattleに記録
   pendingBattle.actionResult = {
     type:'lifeTake',
+    success: true,
     usedTrigger: !!usedTrigger,
     cardName: cardData.name || '',
     cardImg:  cardData.img  || ''
   };
+  // ★ v3.26.1: 防御側が完了した時に actionDone を後追いで設定（攻撃側ボタンが「✅取得済み」になる）
+  pendingBattle.actionDone = pendingBattle.actionDone || {};
+  pendingBattle.actionDone.lifeTaken = true;
   pendingBattle.pendingAction = null;
   bdCloseTriggerConfirm();
   toast(usedTrigger ? '⚡ トリガー使用 / カードを手札へ' : '📥 ライフをそのまま手札へ');
@@ -4833,12 +4877,22 @@ function bdOnFirebaseSync(snap){
       if(!prev || prev.phase !== 'resolving' || prev.id !== b.id){
         bdOpenResultModal(b);
       }else{
-        // ★ v3.22.0: 既に開いている結果モーダルにアクション結果が来た場合
-        if(b.actionResult && (!prev.actionResult || prev.actionResult !== b.actionResult)){
+        // ★ v3.22.0 / v3.26.1: 既に開いている結果モーダルにアクション結果が来た場合
+        var prevAr = prev && prev.actionResult;
+        var prevTs = prevAr && (prevAr.ts || JSON.stringify(prevAr));
+        var newAr  = b.actionResult;
+        var newTs  = newAr && (newAr.ts || JSON.stringify(newAr));
+        if(newAr && newTs !== prevTs){
           try{ bdRenderResultActions(b); }catch(e){}
-          var ar = b.actionResult;
-          if(ar.type==='lifeTake'){
-            toast('📥 ライフ取得完了' + (ar.usedTrigger ? ' / ⚡ トリガー使用' : ' / トリガー未使用') + (ar.cardName ? ' / '+ar.cardName : ''));
+          if(newAr.failed){
+            var failMsg = newAr.type==='lifeTake' ? '⚠️ ライフ取得失敗（' + (newAr.reason||'') + '）'
+                       : newAr.type==='charKO'   ? '⚠️ キャラKO失敗（対象が移動済みの可能性）'
+                       : '⚠️ アクション失敗';
+            toast(failMsg);
+          }else if(newAr.type==='lifeTake'){
+            toast('📥 ライフ取得完了' + (newAr.usedTrigger ? ' / ⚡ トリガー使用' : ' / トリガー未使用') + (newAr.cardName ? ' / '+newAr.cardName : ''));
+          }else if(newAr.type==='charKO'){
+            toast('🪦 KO完了' + (newAr.cardName ? ' / '+newAr.cardName : ''));
           }
         }
       }
@@ -4854,7 +4908,10 @@ function bdOnFirebaseSync(snap){
         if(summary) toast(summary);
       }
       _bdSeenId = null;
+      _bdHandledActionId = null; // ★ v3.26.1: アクションハンドル状態もリセット
       _bdHideOverlay();
+      // ★ v3.26.1: トリガー確認モーダルも強制クローズ（取消や手動リセット時の取り残し対策）
+      try{ bdCloseTriggerConfirm(); }catch(e){}
       var bb=_bdEl('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending');
     }
   }
