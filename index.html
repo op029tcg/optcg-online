@@ -1244,7 +1244,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.1</div>
+    <div class="logo-ver">BATTLE v3.26.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1260,7 +1260,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.1</div>
+    <div class="logo-ver">BATTLE v3.26.2</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1279,7 +1279,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.1</div>
+    <div class="logo-ver">BATTLE v3.26.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1302,7 +1302,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.1</div>
+    <div class="logo-ver">BATTLE v3.26.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1322,7 +1322,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.1</div>
+    <div class="logo-ver">BATTLE v3.26.2</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3968,8 +3968,20 @@ function bdOnEnd(e){
   arrowRender();
   if(!toAnchor) return;
   if(JSON.stringify(toAnchor)===JSON.stringify(fromAnchor)) return;
+  // ★ v3.26.2: 攻撃元として無効なゾーンを警告
+  if(fromAnchor && _bdIsInvalidAttackerZone(fromAnchor)){
+    toast('⚠️ ステージ/DON/トラッシュ等は通常攻撃元になりません');
+  }
   bdExitMode();
   bdOpenAttackModalSimple(fromAnchor, toAnchor);
+}
+// ★ v3.26.2: 通常攻撃元として無効なゾーン判定
+function _bdIsInvalidAttackerZone(anchor){
+  if(!anchor || !anchor.zone) return false;
+  // 有効: リーダー or キャラスロット
+  if(anchor.zone === 'p1LeaderZone' || anchor.zone === 'p2LeaderZone') return false;
+  if(anchor.zone === 'cslot') return false;
+  return true; // それ以外は警告対象
 }
 var _bdListenersAttached = false;
 function bdAttachListeners(){
@@ -4101,6 +4113,12 @@ function bdRefreshIfOpen(){
 
 // ★ v3.16.0: アクティブDON枚数の表示
 // ★ v3.25.0: 攻撃カード情報を描画（画像 + 名前 + パワー）
+// ★ v3.26.2: HTML エスケープヘルパー（innerHTML 注入対策）
+function _bdEscapeHTML(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function _bdRenderAttackerCard(b){
   var box = _bdEl('bdDefAttackerCard'); if(!box) return;
   if(!b || !b.atkCard){
@@ -4110,11 +4128,12 @@ function _bdRenderAttackerCard(b){
   }
   var c = b.atkCard;
   var atkLabel = b.atkRole==='p1' ? 'P1' : 'P2';
-  var nm = c.name || (b.atkName || 'カード');
-  var pw = c.power || b.atkPower || '―';
+  var nm = _bdEscapeHTML(c.name || b.atkName || 'カード');
+  var pw = _bdEscapeHTML(c.power || b.atkPower || '―');
+  var imgUrl = _bdEscapeHTML(c.img || '');
   box.style.display = '';
   box.innerHTML = ''
-    + '<div class="bda-img">' + (c.img ? '<img src="'+c.img+'" alt="'+nm+'">' : '') + '</div>'
+    + '<div class="bda-img">' + (c.img ? '<img src="'+imgUrl+'" alt="'+nm+'">' : '') + '</div>'
     + '<div class="bda-info">'
     +   '<div class="bda-label">'+atkLabel+' からの攻撃</div>'
     +   '<div class="bda-name">'+nm+'</div>'
@@ -4542,8 +4561,10 @@ function bdOpenResultModal(b){
           }
           var info = document.createElement('div');
           info.className = 'bd-rb-info';
-          var nm = r.card.name || 'ブロッカー';
-          var pw = r.card.power ? '<b>'+r.card.power+'</b>' : '';
+          // ★ v3.26.2: HTMLエスケープ
+          var nm = _bdEscapeHTML(r.card.name || 'ブロッカー');
+          var pwRaw = r.card.power;
+          var pw = pwRaw ? '<b>'+_bdEscapeHTML(pwRaw)+'</b>' : '';
           var status = r.ko ? '<span class="bd-rb-status">🪦 KO</span>' : '<span class="bd-rb-status">🛡 レスト</span>';
           info.innerHTML = '<div>'+nm+'</div>' + (pw ? '<div style="font-size:11px;opacity:.85;">パワー '+pw+'</div>' : '') + status;
           bk.appendChild(imgWrap);
@@ -4669,11 +4690,11 @@ var _bdHandledActionId = null;
 
 // 防御側: ライフ取得 - 一番上のライフを公開してトリガー確認モーダル表示
 function bdDefenderHandleLifeTake(b, defRole){
-  saveState();
+  saveState(); // ★ v3.26.2: 失敗パス・成功パス両方でUndo可能に冒頭で保存
   // 一番上のライフカードデータ取得
   var lifeFaces = lifeCardFace[defRole]||[];
   if(!lifeFaces.length){
-    // ★ v3.26.1: 失敗フィードバックを返して攻撃側のボタン復旧を可能に
+    // 失敗フィードバックを返して攻撃側のボタン復旧を可能に
     if(pendingBattle){
       pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
       pendingBattle.pendingAction = null;
@@ -4693,10 +4714,11 @@ function bdDefenderHandleLifeTake(b, defRole){
 // 防御側: キャラKO処理 - 対象キャラをトラッシュへ
 function bdDefenderHandleCharKO(b, defRole){
   if(!b.toAnchor || b.toAnchor.zone!=='cslot') return;
+  saveState(); // ★ v3.26.2: 失敗パスでもUndo復元できるよう冒頭にsaveState
   var targetLoc = 'field_'+b.toAnchor.player+'_'+b.toAnchor.idx;
   var i = testCards.findIndex(function(x){ return x && x.loc===targetLoc; });
   if(i<0){
-    // ★ v3.26.1: 失敗フィードバック
+    // 失敗フィードバック
     if(pendingBattle){
       pendingBattle.actionResult = {type:'charKO', failed:true, reason:'not_found'};
       pendingBattle.pendingAction = null;
@@ -4705,7 +4727,6 @@ function bdDefenderHandleCharKO(b, defRole){
     toast('⚠️ 対象キャラが見つかりません（移動済みの可能性）');
     return;
   }
-  saveState();
   var c = testCards[i];
   c.loc = 'trash_'+defRole;
   c.rested = false;
@@ -4785,11 +4806,20 @@ function bdFinishLifeTake(usedTrigger){
 }
 
 function bdConfirmResult(){
+  // ★ v3.26.2: 依頼中のアクションがある場合は警告して中断
+  if(pendingBattle && pendingBattle.pendingAction){
+    var actLbl = pendingBattle.pendingAction === 'lifeTake' ? 'ライフ取得' :
+                 pendingBattle.pendingAction === 'charKO'   ? 'キャラKO' :
+                 'アクション';
+    toast('⏳ '+actLbl+'の応答待ちです。少し待ってから確認してください');
+    return;
+  }
   // ★ v3.9.0: 解決サマリートースト（攻撃側）
   var summary = _bdMakeSummary(pendingBattle);
   saveState();
   pendingBattle = null;
   _bdSeenId = null;
+  _bdHandledActionId = null; // ★ v3.26.2: 念のためリセット
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){} // ★ v3.7.0: 赤アロー消去
   if(summary) toast(summary);
