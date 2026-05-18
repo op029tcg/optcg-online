@@ -1248,7 +1248,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.3</div>
+    <div class="logo-ver">BATTLE v3.27.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1264,7 +1264,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.3</div>
+    <div class="logo-ver">BATTLE v3.27.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1283,7 +1283,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.3</div>
+    <div class="logo-ver">BATTLE v3.27.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1306,7 +1306,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.3</div>
+    <div class="logo-ver">BATTLE v3.27.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1326,7 +1326,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.26.3</div>
+    <div class="logo-ver">BATTLE v3.27.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -4342,7 +4342,39 @@ function bdAcceptAttack(){
   _bdDefDraft.event = 0;
   _bdDefDraft.eventCost = 0;
   _bdDefDraft.blocker = false;
+  // ★ v3.27.0: リーダー攻撃なら受入れと同時にライフ取得フローへ
+  var to = pendingBattle.toAnchor;
+  var isLeaderAttack = to && (to.zone === 'p1LeaderZone' || to.zone === 'p2LeaderZone');
   bdSubmitDefense();
+  if(isLeaderAttack){
+    _bdAutoStartLifeTake();
+  }
+}
+// ★ v3.27.0: 受入れ → 自動でライフ取得（防御側）
+function _bdAutoStartLifeTake(){
+  if(!pendingBattle) return;
+  var defRole = pendingBattle.atkRole === 'p1' ? 'p2' : 'p1';
+  if(MY_ROLE !== defRole) return;
+  var faces = lifeCardFace[defRole] || [];
+  if(!faces.length){
+    pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
+    pendingBattle.pendingAction = null;
+    if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+    toast('⚠️ ライフがありません');
+    return;
+  }
+  // attacker側のボタンを「⏳ 依頼中…」にする
+  pendingBattle.pendingAction = 'lifeTake';
+  pendingBattle.pendingActionTs = Date.now();
+  // ★ v3.27.0: 自分が処理中なので _bdHandledActionId をセットして bdHandleDefenderAction の二重起動を防ぐ
+  _bdHandledActionId = pendingBattle.id + '_' + pendingBattle.pendingActionTs;
+  // ライフ表向き + トリガー確認モーダル
+  var topData = (lifeCardsData[defRole]||[])[0] || {};
+  faces[0] = true;
+  try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
+  bdOpenTriggerConfirm(topData);
+  safeVibrate([60,40,60]);
+  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
 }
 function bdConfirmCounter(){
   if(!pendingBattle || !_bdDefDraft) return;
@@ -4933,26 +4965,27 @@ function bdOnFirebaseSync(snap){
       }
     }else if(b.phase==='resolving' && MY_ROLE === b.atkRole){
       // 攻撃側: 応答が返ってきたら結果モーダル表示
-      if(!prev || prev.phase !== 'resolving' || prev.id !== b.id){
+      var isFirstResolving = !prev || prev.phase !== 'resolving' || prev.id !== b.id;
+      if(isFirstResolving){
         bdOpenResultModal(b);
-      }else{
-        // ★ v3.22.0 / v3.26.1: 既に開いている結果モーダルにアクション結果が来た場合
-        var prevAr = prev && prev.actionResult;
-        var prevTs = prevAr && (prevAr.ts || JSON.stringify(prevAr));
-        var newAr  = b.actionResult;
-        var newTs  = newAr && (newAr.ts || JSON.stringify(newAr));
-        if(newAr && newTs !== prevTs){
-          try{ bdRenderResultActions(b); }catch(e){}
-          if(newAr.failed){
-            var failMsg = newAr.type==='lifeTake' ? '⚠️ ライフ取得失敗（' + (newAr.reason||'') + '）'
-                       : newAr.type==='charKO'   ? '⚠️ キャラKO失敗（対象が移動済みの可能性）'
-                       : '⚠️ アクション失敗';
-            toast(failMsg);
-          }else if(newAr.type==='lifeTake'){
-            toast('📥 ライフ取得完了' + (newAr.usedTrigger ? ' / ⚡ トリガー使用' : ' / トリガー未使用') + (newAr.cardName ? ' / '+newAr.cardName : ''));
-          }else if(newAr.type==='charKO'){
-            toast('🪦 KO完了' + (newAr.cardName ? ' / '+newAr.cardName : ''));
-          }
+      }
+      // ★ v3.22.0 / v3.26.1 / v3.27.0: actionResult を first-time でもチェック
+      // （v3.27.0 自動ライフ取得フローでは初回sync時に既にactionResultが含まれている可能性あり）
+      var prevAr = prev && prev.actionResult;
+      var prevTs = prevAr ? JSON.stringify(prevAr) : '';
+      var newAr  = b.actionResult;
+      var newTs  = newAr ? JSON.stringify(newAr) : '';
+      if(newAr && newTs !== prevTs){
+        if(!isFirstResolving) try{ bdRenderResultActions(b); }catch(e){}
+        if(newAr.failed){
+          var failMsg = newAr.type==='lifeTake' ? '⚠️ ライフ取得失敗（' + (newAr.reason||'') + '）'
+                     : newAr.type==='charKO'   ? '⚠️ キャラKO失敗（対象が移動済みの可能性）'
+                     : '⚠️ アクション失敗';
+          toast(failMsg);
+        }else if(newAr.type==='lifeTake'){
+          toast('📥 ライフ取得完了' + (newAr.usedTrigger ? ' / ⚡ トリガー使用' : ' / トリガー未使用') + (newAr.cardName ? ' / '+newAr.cardName : ''));
+        }else if(newAr.type==='charKO'){
+          toast('🪦 KO完了' + (newAr.cardName ? ' / '+newAr.cardName : ''));
         }
       }
     }
