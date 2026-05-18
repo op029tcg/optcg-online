@@ -1248,7 +1248,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.27.1</div>
+    <div class="logo-ver">BATTLE v3.28.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1264,7 +1264,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.27.1</div>
+    <div class="logo-ver">BATTLE v3.28.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1283,7 +1283,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.27.1</div>
+    <div class="logo-ver">BATTLE v3.28.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1306,7 +1306,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.27.1</div>
+    <div class="logo-ver">BATTLE v3.28.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1326,7 +1326,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.27.1</div>
+    <div class="logo-ver">BATTLE v3.28.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3855,6 +3855,19 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
   }
   setTimeout(function(){ try{ _bdEl('bdAtkPower').focus(); _bdEl('bdAtkPower').select(); }catch(e){} }, 100);
 }
+// ★ v3.28.0: anchor が指すゾーンの所有者を返す (p1/p2/null)
+function _bdGetAnchorOwner(anchor){
+  if(!anchor || !anchor.zone) return null;
+  if(anchor.zone === 'p1LeaderZone') return 'p1';
+  if(anchor.zone === 'p2LeaderZone') return 'p2';
+  if(anchor.zone === 'cslot' && (anchor.player==='p1' || anchor.player==='p2')) return anchor.player;
+  return null;
+}
+// ★ v3.28.0: 状態遷移用の即時 FB プッシュ (debounce 競合回避)
+function _bdPushNow(){
+  try{ if(typeof _fbPushTimer!=='undefined'){ clearTimeout(_fbPushTimer); _fbPushTimer=null; } }catch(e){}
+  if(typeof fbPushState==='function' && fbListening) fbPushState();
+}
 // ★ v3.25.0: 攻撃元カードの情報(画像/名前/パワー)を取得
 function _bdGetAnchorCardInfo(anchor){
   if(!anchor) return null;
@@ -3979,6 +3992,18 @@ function bdOnEnd(e){
   if(fromAnchor && _bdIsInvalidAttackerZone(fromAnchor)){
     toast('⚠️ ステージ/DON/トラッシュ等は通常攻撃元になりません');
   }
+  // ★ v3.28.0: 所有権による誤ドラッグを早期に弾く
+  var _fOwn = _bdGetAnchorOwner(fromAnchor);
+  var _tOwn = _bdGetAnchorOwner(toAnchor);
+  var _my   = MY_ROLE || 'p1';
+  if(_fOwn && _fOwn !== _my){
+    toast('⛔ 相手の駒から攻撃宣言はできません');
+    bdExitMode(); return;
+  }
+  if(_tOwn && _tOwn === _my){
+    toast('⛔ 自分自身を攻撃対象にできません');
+    bdExitMode(); return;
+  }
   bdExitMode();
   bdOpenAttackModalSimple(fromAnchor, toAnchor);
 }
@@ -4021,6 +4046,16 @@ function bdSubmitAttackDeclare(){
   var hasAnchors = !!(_bdPendingFrom && _bdPendingTo);
   if(hasAnchors){
     if(!pw){ toast('攻撃力を入力してください'); return; }
+    // ★ v3.28.0: 所有権チェック — 攻撃元は自分、対象は相手でなければ宣言不可
+    var fromOwner = _bdGetAnchorOwner(_bdPendingFrom);
+    var toOwner   = _bdGetAnchorOwner(_bdPendingTo);
+    var myRole = MY_ROLE || 'p1';
+    if(fromOwner && fromOwner !== myRole){
+      toast('⛔ 自分の駒からしか攻撃できません'); return;
+    }
+    if(toOwner && toOwner === myRole){
+      toast('⛔ 自分自身の駒は攻撃対象にできません'); return;
+    }
   }else{
     if(!nm && !pw && !tg){ toast('内容を入力してください'); return; }
   }
@@ -4048,12 +4083,13 @@ function bdSubmitAttackDeclare(){
   try{ _bdAttackFlash(); }catch(e){} // ★ v3.24.0: 視覚エフェクト
   safeVibrate(50); // ★ v3.24.0: 強めの振動
   toast('⚔ アタック宣言を送信しました');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  _bdPushNow(); // ★ v3.28.0: 状態遷移は即時プッシュ
 }
-// ★ v3.24.0: 攻撃元キャラ/リーダーを自動でレスト状態に
+// ★ v3.24.0 / v3.28.0: 攻撃元キャラ/リーダーを自動でレスト状態に (所有権が自分のもののみ)
 function _bdAutoRestAttacker(fromAnchor){
   if(!fromAnchor) return;
+  var owner = _bdGetAnchorOwner(fromAnchor);
+  if(owner && owner !== (MY_ROLE||'p1')) return; // 相手の駒は触らない
   if(fromAnchor.zone === 'p1LeaderZone' || fromAnchor.zone === 'p2LeaderZone'){
     var player = fromAnchor.zone === 'p1LeaderZone' ? 'p1' : 'p2';
     if(typeof ldrRested !== 'undefined') ldrRested[player] = true;
@@ -4347,12 +4383,15 @@ function bdAcceptAttack(){
   // ★ v3.27.0: リーダー攻撃なら受入れと同時にライフ取得フローへ
   var to = pendingBattle.toAnchor;
   var isLeaderAttack = to && (to.zone === 'p1LeaderZone' || to.zone === 'p2LeaderZone');
+  // ★ v3.28.0: 受入れ→自動ライフ取得の場合は bdSubmitDefense の push をスキップして
+  //            _bdAutoStartLifeTake にまとめて 1 回 push する
+  if(isLeaderAttack) _bdSkipPushOnce = true;
   bdSubmitDefense();
   if(isLeaderAttack){
     _bdAutoStartLifeTake();
   }
 }
-// ★ v3.27.0: 受入れ → 自動でライフ取得（防御側）
+// ★ v3.27.0 / v3.28.0: 受入れ → 自動でライフ取得（防御側）
 function _bdAutoStartLifeTake(){
   if(!pendingBattle) return;
   var defRole = pendingBattle.atkRole === 'p1' ? 'p2' : 'p1';
@@ -4361,7 +4400,7 @@ function _bdAutoStartLifeTake(){
   if(!faces.length){
     pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
     pendingBattle.pendingAction = null;
-    if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+    _bdPushNow();
     toast('⚠️ ライフがありません');
     return;
   }
@@ -4376,7 +4415,7 @@ function _bdAutoStartLifeTake(){
   try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
   bdOpenTriggerConfirm(topData);
   safeVibrate([60,40,60]);
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  _bdPushNow(); // ★ v3.28.0
 }
 function bdConfirmCounter(){
   if(!pendingBattle || !_bdDefDraft) return;
@@ -4447,9 +4486,11 @@ function bdSubmitDefense(){
   if(blockerResult==='ko')   notes.push('🪦 ブロッカーをトラッシュへ');
   if(blockerResult==='rest') notes.push('🛡 ブロッカーをレストに');
   toast('🛡 応答を送信しました' + (notes.length ? ' / ' + notes.join(' / ') : ''));
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  // ★ v3.28.0: 受入れフローでは _bdAutoStartLifeTake が直後に push するのでここはスキップ
+  if(!_bdSkipPushOnce){ _bdPushNow(); }
+  _bdSkipPushOnce = false;
 }
+var _bdSkipPushOnce = false;
 // ★ v3.17.0: 使用したカウンター札を自動トラッシュ
 function _bdAutoTrashUsedCards(player, usedCards){
   if(!usedCards || !usedCards.length) return 0;
@@ -4697,11 +4738,12 @@ function bdRequestLifeTake(){
   //            pendingAction は「保留中」を示すフラグ
   pendingBattle.pendingAction = 'lifeTake';
   pendingBattle.pendingActionTs = Date.now();
+  // ★ v3.28.0: リトライ時は前回の actionResult をクリア (失敗→再失敗の差分検出問題対策)
+  pendingBattle.actionResult = null;
   // ボタンを一時的に「⏳ 依頼中…」表示にする
   bdRenderResultActions(pendingBattle);
   toast('📥 ライフ取得を依頼しました');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  _bdPushNow(); // ★ v3.28.0: 状態遷移は即時プッシュ
 }
 // ★ v3.22.0 / v3.26.1: キャラKOリクエスト（攻撃側）
 function bdRequestCharKO(){
@@ -4709,10 +4751,11 @@ function bdRequestCharKO(){
   saveState();
   pendingBattle.pendingAction = 'charKO';
   pendingBattle.pendingActionTs = Date.now();
+  // ★ v3.28.0: リトライ時のクリア
+  pendingBattle.actionResult = null;
   bdRenderResultActions(pendingBattle);
   toast('🪦 キャラKOを依頼しました');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  _bdPushNow(); // ★ v3.28.0
 }
 
 // ★ v3.22.0: 防御側でアクションリクエストを処理
@@ -4741,7 +4784,7 @@ function bdDefenderHandleLifeTake(b, defRole){
     if(pendingBattle){
       pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
       pendingBattle.pendingAction = null;
-      if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+      _bdPushNow(); // ★ v3.28.0
     }
     toast('⚠️ ライフがありません');
     return;
@@ -4765,7 +4808,7 @@ function bdDefenderHandleCharKO(b, defRole){
     if(pendingBattle){
       pendingBattle.actionResult = {type:'charKO', failed:true, reason:'not_found'};
       pendingBattle.pendingAction = null;
-      if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+      _bdPushNow(); // ★ v3.28.0
     }
     toast('⚠️ 対象キャラが見つかりません（移動済みの可能性）');
     return;
@@ -4784,7 +4827,7 @@ function bdDefenderHandleCharKO(b, defRole){
     pendingBattle.pendingAction = null;
   }
   toast('🪦 ' + (c.name||'キャラ') + ' をトラッシュへ');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  _bdPushNow(); // ★ v3.28.0
 }
 
 // トリガー確認モーダル
@@ -4812,21 +4855,35 @@ function bdCloseTriggerConfirm(){
   _bdEl('triggerConfirmOverlay').classList.remove('show');
   _bdTriggerCardData = null;
 }
-// ★ v3.26.3: トリガー確認の中断（防御側がキャンセル → 攻撃側に失敗を返す）
+// ★ v3.26.3 / v3.28.0: トリガー確認の中断
+//   v3.28.0: 受入れ後の中断時は防御モーダルを再表示して防御を選び直せるようにする
 function bdAbortTriggerConfirm(){
-  if(!confirm('ライフ取得処理を中断しますか?')) return;
+  if(!confirm('ライフ取得処理を中断しますか?\n(防御を選び直せます)')) return;
   if(pendingBattle){
-    // ライフは既に表向きにしたので戻す（テープルから一旦表→裏）
     var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
+    // ライフを表向きから裏面に戻す
     var faces = lifeCardFace[defRole] || [];
     if(faces.length && faces[0] === true){
       faces[0] = false;
       try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
     }
-    // 攻撃側に「失敗（中断）」を返す
-    pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'aborted'};
+    // ★ v3.28.0: フェーズを awaiting_def に戻して防御選択をやり直せるように
+    var isDef = MY_ROLE === defRole;
+    pendingBattle.phase = 'awaiting_def';
+    pendingBattle.responses = [];
+    pendingBattle.actionResult = null;
     pendingBattle.pendingAction = null;
-    if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+    pendingBattle.actionDone = null;
+    bdCloseTriggerConfirm();
+    _bdHandledActionId = null;
+    if(isDef){
+      // 防御側: 防御モーダルを再表示 (_bdSeenId は battle.id に維持して FB echo の二重起動を防ぐ)
+      _bdSeenId = pendingBattle.id;
+      try{ bdOpenDefenseModal(pendingBattle); }catch(e){}
+    }
+    _bdPushNow();
+    toast('↩ 中断 / 防御を選び直してください');
+    return;
   }
   bdCloseTriggerConfirm();
   toast('↩ トリガー確認を中断しました');
@@ -4864,7 +4921,7 @@ function bdFinishLifeTake(usedTrigger){
   pendingBattle.pendingAction = null;
   bdCloseTriggerConfirm();
   toast(usedTrigger ? '⚡ トリガー使用 / カードを手札へ' : '📥 ライフをそのまま手札へ');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
+  _bdPushNow(); // ★ v3.28.0
 }
 
 function bdConfirmResult(){
@@ -4885,8 +4942,7 @@ function bdConfirmResult(){
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){} // ★ v3.7.0: 赤アロー消去
   if(summary) toast(summary);
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  _bdPushNow(); // ★ v3.28.0
 }
 // ★ v3.14.0: アタック宣言の取消（応答待ちの間だけ有効）
 function bdCancelDeclare(){
@@ -4906,8 +4962,7 @@ function bdCancelDeclare(){
   _bdHideOverlay();
   try{ arrowRender(); }catch(e){}
   toast('↩ アタック宣言を取消しました');
-  if(typeof fbPushStateDebounced==='function' && fbListening) fbPushStateDebounced();
-  else if(typeof fbPushState==='function' && fbListening) fbPushState();
+  _bdPushNow(); // ★ v3.28.0
 }
 function bdReshowCurrent(){
   // モーダルを誤って閉じた場合、現在のフェーズに応じて再表示
@@ -4957,6 +5012,12 @@ function bdOnFirebaseSync(snap){
   // 自分が送信中のIDなら何もしない（自分の宣言で自分のモーダルを開かない）
   if(pendingBattle){
     var b = pendingBattle;
+    // ★ v3.28.0: 防御側中断により resolving → awaiting_def に巻き戻された場合の攻撃側ハンドリング
+    if(prev && prev.phase==='resolving' && b.phase==='awaiting_def' && b.id === prev.id && MY_ROLE === b.atkRole){
+      try{ _bdHideOverlay(); }catch(e){}
+      try{ bdReshowCurrent(); }catch(e){} // 「📡 回答待ち」コンパクトモーダルを再表示
+      toast('↩ 相手が防御をやり直し中…');
+    }
     if(b.phase==='awaiting_def' && MY_ROLE && MY_ROLE !== b.atkRole){
       // 防御側: 新しい宣言が来たらモーダル表示
       if(_bdSeenId !== b.id){
