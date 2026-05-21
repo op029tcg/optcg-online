@@ -467,6 +467,20 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 .bd-bar-power.result-counter{background:rgba(34,211,238,.18);color:#22d3ee;border-color:rgba(34,211,238,.55);}
 .bd-bar-power.result-event{background:rgba(255,213,74,.18);color:#ffd54a;border-color:rgba(255,213,74,.55);}
 .bd-bar-power.result-block{background:rgba(239,68,68,.2);color:#ef4444;border-color:rgba(239,68,68,.6);}
+/* ★ v3.29.0: 防御合計パワーのライブ表示 */
+.bd-def-livetotal-row{margin:6px 0 10px 0;}
+.bd-def-livetotal{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;padding:9px 12px;border-radius:10px;font-weight:800;font-size:13px;line-height:1.3;text-align:center;transition:background .2s ease, color .2s ease, box-shadow .2s ease;}
+.bd-def-livetotal.success{background:linear-gradient(135deg,#0a3d2f,#1a6b4d);color:#bbf7d0;box-shadow:inset 0 0 0 1px rgba(74,222,128,.5),0 2px 12px rgba(74,222,128,.2);}
+.bd-def-livetotal.fail{background:linear-gradient(135deg,#3d0a0a,#6b1a1a);color:#fecaca;box-shadow:inset 0 0 0 1px rgba(248,113,113,.5),0 2px 12px rgba(248,113,113,.2);}
+.bd-def-livetotal.neutral{background:rgba(255,255,255,.06);color:#aab;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);}
+.bd-def-livetotal .lt-num{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;line-height:1;}
+.bd-def-livetotal .lt-num.atk{color:#fca5a5;}
+.bd-def-livetotal .lt-num.def{color:inherit;}
+.bd-def-livetotal .lt-vs{opacity:.55;font-size:11px;font-weight:600;}
+.bd-def-livetotal .lt-detail{opacity:.7;font-size:10px;font-weight:500;letter-spacing:.3px;width:100%;margin-top:2px;}
+.bd-def-livetotal .lt-flag{font-size:12px;font-weight:900;letter-spacing:1px;padding:2px 6px;border-radius:5px;}
+.bd-def-livetotal.success .lt-flag{background:rgba(74,222,128,.2);}
+.bd-def-livetotal.fail .lt-flag{background:rgba(248,113,113,.2);}
 /* ★ v3.20.0: 手動リセット FAB + 確認モーダル */
 #btnManualReset{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:44px;height:44px;border-radius:50%;border:2px solid rgba(239,68,68,.85);background:rgba(40,10,10,.92);color:#ef4444;font-size:20px;cursor:pointer;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,.6),0 0 0 1px rgba(239,68,68,.4);font-family:inherit;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
 #btnManualReset:active{transform:scale(.92);background:rgba(60,15,15,.95);}
@@ -496,10 +510,19 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 #triggerConfirmPanel .tc-close{cursor:pointer;font-size:18px;color:#aab;padding:2px 8px;-webkit-tap-highlight-color:transparent;letter-spacing:0;}
 #triggerConfirmPanel .tc-close:active{color:#fff;}
 #triggerConfirmPanel .tc-info{font-size:13px;color:#cde;margin-bottom:10px;}
-#triggerConfirmPanel .tc-card{display:flex;justify-content:center;margin:10px 0;}
-#triggerConfirmPanel .tc-card .tc-img{width:90px;height:126px;border-radius:8px;overflow:hidden;border:2px solid rgba(255,213,74,.6);background:#0d1835;}
+#triggerConfirmPanel .tc-card{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:14px 0;perspective:1000px;}
+/* ★ v3.29.0: カードを大きく中央表示 + フリップイン演出 */
+#triggerConfirmPanel .tc-card .tc-img{width:min(220px,62vw);aspect-ratio:5/7;height:auto;border-radius:14px;overflow:hidden;border:3px solid rgba(255,213,74,.75);background:#0d1835;box-shadow:0 12px 40px rgba(255,213,74,.35),0 0 60px rgba(255,213,74,.18);transform-origin:center center;}
 #triggerConfirmPanel .tc-card .tc-img img{width:100%;height:100%;object-fit:cover;display:block;}
-#triggerConfirmPanel .tc-card .tc-name{font-size:11px;color:#aab;text-align:center;margin-top:6px;}
+#triggerConfirmPanel .tc-card .tc-name{font-size:14px;font-weight:700;color:#fff;text-align:center;margin-top:12px;letter-spacing:.5px;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+@keyframes triggerCardZoomIn{
+  0%   {transform:scale(.25) rotateY(180deg);opacity:0;filter:brightness(1.8) blur(2px);}
+  55%  {transform:scale(1.06) rotateY(0deg);opacity:1;filter:brightness(1.25) blur(0);}
+  100% {transform:scale(1) rotateY(0deg);opacity:1;filter:brightness(1);}
+}
+#triggerConfirmOverlay.show .tc-card .tc-img{animation:triggerCardZoomIn .55s cubic-bezier(.16,1,.3,1) both;}
+@keyframes triggerNameFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+#triggerConfirmOverlay.show .tc-card .tc-name{animation:triggerNameFadeIn .35s ease-out .35s both;}
 #triggerConfirmPanel .tc-question{font-size:14px;color:#fff;text-align:center;margin:10px 0;font-weight:700;}
 #triggerConfirmPanel .tc-btns{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 #triggerConfirmPanel .tc-btn{padding:12px;border-radius:10px;border:none;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
@@ -1248,7 +1271,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.28.0</div>
+    <div class="logo-ver">BATTLE v3.29.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1264,7 +1287,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.28.0</div>
+    <div class="logo-ver">BATTLE v3.29.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1283,7 +1306,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.28.0</div>
+    <div class="logo-ver">BATTLE v3.29.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1306,7 +1329,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.28.0</div>
+    <div class="logo-ver">BATTLE v3.29.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1326,7 +1349,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.28.0</div>
+    <div class="logo-ver">BATTLE v3.29.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1662,6 +1685,11 @@ function fbStartListen() {
     <!-- ★ v3.15.0: 共通ヘッダ（攻撃力） -->
     <div class="bd-bar-row" style="margin-bottom:8px;">
       <span class="bd-bar-power" id="bdDefBarPower">アタック ―</span>
+    </div>
+
+    <!-- ★ v3.29.0: 防御合計パワーのライブ表示 (counter/blocker ステップでのみ表示) -->
+    <div class="bd-def-livetotal-row" id="bdDefLiveTotalRow" style="display:none;">
+      <div class="bd-def-livetotal neutral" id="bdDefLiveTotal"></div>
     </div>
 
     <!-- Step1: 3択 -->
@@ -4233,6 +4261,8 @@ function bdRenderDefBlockers(){
         _bdDefDraft.blockerCard = {id:c.id, img:c.img||'', name:c.name||'', power:pw};
       }
       bdRenderDefBlockers();
+      // ★ v3.29.0: ブロッカー選択でライブ集計を更新
+      try{ _bdRenderLiveTotal(); }catch(e){}
     });
     box.appendChild(div);
   });
@@ -4246,6 +4276,8 @@ function bdSetDefStep(step){
   });
   // ★ v3.17.0: blockerステップに入った時にキャラ候補を描画
   if(step==='blocker'){ try{ bdRenderDefBlockers(); }catch(e){} }
+  // ★ v3.29.0: ステップに応じてライブ集計バッジを更新/表示切替
+  try{ _bdRenderLiveTotal(); }catch(e){}
 }
 // ★ v3.15.0: 自分の手札サムネイルを描画
 function bdRenderDefHand(){
@@ -4329,6 +4361,74 @@ function bdRenderDefDraft(){
   // ★ v3.21.0: KO チェックボックスの状態を反映
   var koEl = _bdEl('bdDefBlockerKO');
   if(koEl) koEl.checked = !!_bdDefDraft.blockerKO;
+  // ★ v3.29.0: 防御合計パワーのライブ表示
+  try{ _bdRenderLiveTotal(); }catch(e){}
+}
+// ★ v3.29.0: 防御合計パワーを計算
+function _bdCalcDefenseTotal(){
+  if(!_bdDefDraft || !pendingBattle) return null;
+  var atkPow = parseInt(pendingBattle.atkPower) || 0;
+  var counter = parseInt(_bdDefDraft.counter) || 0;
+  var event   = parseInt(_bdDefDraft.event)   || 0;
+  var basePow = 0;
+  var label = '';
+  if(_bdDefDraft.step === 'blocker'){
+    if(_bdDefDraft.blockerCard){
+      basePow = parseInt(_bdDefDraft.blockerCard.power) || 0;
+      label = 'ブロッカー';
+    }else{
+      basePow = 0;
+      label = 'ブロッカー未選択';
+    }
+  }else if(_bdDefDraft.step === 'counter' && pendingBattle.toAnchor){
+    basePow = _bdCalcAttackPower(pendingBattle.toAnchor) || 0;
+    var z = pendingBattle.toAnchor.zone;
+    label = (z==='p1LeaderZone' || z==='p2LeaderZone') ? 'リーダー' : 'キャラ';
+  }
+  var total = basePow + counter + event;
+  return {
+    atk: atkPow,
+    base: basePow,
+    counter: counter,
+    event: event,
+    total: total,
+    label: label,
+    success: basePow > 0 && total >= atkPow,
+    hasBase: basePow > 0
+  };
+}
+// ★ v3.29.0: ライブ集計バッジを描画
+function _bdRenderLiveTotal(){
+  var row = _bdEl('bdDefLiveTotalRow');
+  var box = _bdEl('bdDefLiveTotal');
+  if(!row || !box) return;
+  if(!_bdDefDraft || _bdDefDraft.step === 'choice'){
+    row.style.display = 'none';
+    return;
+  }
+  var r = _bdCalcDefenseTotal();
+  if(!r){ row.style.display='none'; return; }
+  row.style.display = '';
+  box.classList.remove('success', 'fail', 'neutral');
+  if(!r.hasBase){
+    // 未確定ステート (ブロッカー未選択 or toAnchor 無し)
+    box.classList.add('neutral');
+    box.innerHTML =
+      '🛡 <span class="lt-vs">'+_bdEscapeHTML(r.label||'防御')+'</span> '+
+      '<span class="lt-vs">vs</span> ⚔ <span class="lt-num atk">'+r.atk+'</span>';
+    return;
+  }
+  box.classList.add(r.success ? 'success' : 'fail');
+  var flag = r.success ? '✅ 防御成功' : '❌ 防御失敗';
+  var parts = [];
+  parts.push(_bdEscapeHTML(r.label)+' '+r.base);
+  if(r.counter>0) parts.push('+🛡'+r.counter);
+  if(r.event>0)   parts.push('+🎴'+r.event);
+  box.innerHTML =
+    '🛡 <span class="lt-num def">'+r.total+'</span> '+
+    '<span class="lt-vs">vs</span> ⚔ <span class="lt-num atk">'+r.atk+'</span> '+
+    '<span class="lt-flag">'+flag+'</span>'+
+    '<div class="lt-detail">('+parts.join(' ')+')</div>';
 }
 function bdSetCounter(v){
   if(!_bdDefDraft) return;
