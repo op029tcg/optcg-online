@@ -1829,7 +1829,8 @@ function fbStartListen() {
     <!-- ★ v3.26.3: 右上の ✕ 閉じる(中断確認) -->
     <div class="tc-title"><span>⚡ トリガー確認</span><span class="tc-close" id="tcAbort" title="中断">✕</span></div>
     <div class="tc-body" id="tcBody">
-      <div class="tc-info">📥 P1からライフ取得要求。ライフ上1枚を公開しました。</div>
+      <!-- ★ v3.30.0: 攻撃元の表示を動的に切替 -->
+      <div class="tc-info" id="tcInfo">📥 ライフ取得要求。ライフ上1枚を公開しました。</div>
       <div class="tc-card" id="tcCard"></div>
       <div class="tc-question">このカードのトリガーを使用しますか?</div>
     </div>
@@ -4939,13 +4940,26 @@ function bdRequestCharKO(){
 }
 
 // ★ v3.22.0: 防御側でアクションリクエストを処理
+// ★ v3.30.0: 既処理アクションでもポップアップが閉じていれば再表示（取りこぼし対策）
 function bdHandleDefenderAction(b){
   if(!b || !b.pendingAction) return;
   var defRole = b.atkRole==='p1' ? 'p2' : 'p1';
   if(MY_ROLE !== defRole) return; // 防御側のみ実行
-  // 同じアクションを2回処理しないようにIDで管理
-  if(_bdHandledActionId === b.id + '_' + b.pendingActionTs) return;
-  _bdHandledActionId = b.id + '_' + b.pendingActionTs;
+  var actionKey = b.id + '_' + b.pendingActionTs;
+  var alreadyHandled = (_bdHandledActionId === actionKey);
+  if(alreadyHandled){
+    // ★ v3.30.0: 既処理だがポップアップが閉じている → 受入れ→自動表示が失敗した可能性
+    // → ポップアップを再表示してユーザーが操作できるようにする
+    if(b.pendingAction === 'lifeTake'){
+      var ov = _bdEl('triggerConfirmOverlay');
+      if(ov && !ov.classList.contains('show')){
+        var topData = (lifeCardsData[defRole]||[])[0] || {};
+        try{ bdOpenTriggerConfirm(topData); }catch(e){}
+      }
+    }
+    return;
+  }
+  _bdHandledActionId = actionKey;
   if(b.pendingAction === 'lifeTake'){
     bdDefenderHandleLifeTake(b, defRole);
   } else if(b.pendingAction === 'charKO'){
@@ -5029,6 +5043,14 @@ function bdOpenTriggerConfirm(cardData){
     wrap.appendChild(nm);
     cardBox.appendChild(wrap);
   }
+  // ★ v3.30.0: 攻撃元ロールを動的に表示（P1/P2 ハードコード排除）
+  try{
+    var info = _bdEl('tcInfo');
+    if(info && pendingBattle && pendingBattle.atkRole){
+      var atkLbl = pendingBattle.atkRole==='p1' ? 'P1' : 'P2';
+      info.textContent = '📥 '+atkLbl+'からライフ取得要求。ライフ上1枚を公開しました。';
+    }
+  }catch(e){}
   ov.classList.add('show');
 }
 function bdCloseTriggerConfirm(){
