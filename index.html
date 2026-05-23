@@ -602,6 +602,7 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 .bd-attacker-card .bda-label{font-size:10px;color:#ef9b9b;letter-spacing:1px;text-transform:uppercase;font-weight:700;}
 .bd-attacker-card .bda-name{font-size:13px;color:#fff;font-weight:700;line-height:1.3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .bd-attacker-card .bda-power{color:#ef4444;font-weight:900;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px;margin-top:2px;}
+.bd-attacker-card .bda-power.def{color:#22d3ee;}
 .bd-attacker-card .bda-vs{align-self:center;font-size:18px;font-weight:900;color:#ef4444;padding:0 4px;text-shadow:0 0 6px rgba(239,68,68,.6);flex-shrink:0;font-family:'Bebas Neue',sans-serif;}
 /* ★ v3.30.0: フィールド確認トグル */
 .bd-bar-btn.field-peek{background:rgba(34,211,238,.18);color:#22d3ee;border-color:rgba(34,211,238,.5);}
@@ -1829,7 +1830,8 @@ function fbStartListen() {
     <!-- ★ v3.26.3: 右上の ✕ 閉じる(中断確認) -->
     <div class="tc-title"><span>⚡ トリガー確認</span><span class="tc-close" id="tcAbort" title="中断">✕</span></div>
     <div class="tc-body" id="tcBody">
-      <div class="tc-info">📥 P1からライフ取得要求。ライフ上1枚を公開しました。</div>
+      <!-- ★ v3.30.0: 攻撃元の表示を動的に切替 / ライフ開示は確定後に行うため文言修正 -->
+      <div class="tc-info" id="tcInfo">📥 ライフ取得要求。ライフ上1枚を確認してください。</div>
       <div class="tc-card" id="tcCard"></div>
       <div class="tc-question">このカードのトリガーを使用しますか?</div>
     </div>
@@ -3901,7 +3903,8 @@ function bdOpenAttackModalSimple(fromAnchor, toAnchor){
   var route = _bdEl('bdAtkRoute');
   var sec   = _bdEl('bdAtkRouteSec');
   var fromPow = _bdCalcAttackPower(fromAnchor);
-  var toPow   = _bdCalcAttackPower(toAnchor);
+  // ★ v3.30.0: 対象側は防御側 → ドンは自分ターンのみ有効なため除外
+  var toPow   = _bdCalcAttackPower(toAnchor, {includeDon:false});
   if(route && sec){
     sec.style.display='';
     route.style.display='';
@@ -3936,8 +3939,10 @@ function _bdPushNow(){
 }
 // ★ v3.25.0: 攻撃元カードの情報(画像/名前/パワー)を取得
 // ★ v3.30.0: kind (leader/char) と owner (p1/p2) も付与
-function _bdGetAnchorCardInfo(anchor){
+//            opts.includeDon=false で防御側パワー計算（ドン効果は自分のターンのみ）
+function _bdGetAnchorCardInfo(anchor, opts){
   if(!anchor) return null;
+  opts = opts || {};
   var loc = null;
   var kind = '';
   var owner = '';
@@ -3955,43 +3960,54 @@ function _bdGetAnchorCardInfo(anchor){
   return {
     img: tc.img || '',
     name: tc.name || '',
-    power: _bdCalcAttackPower(anchor), // 計算後のパワー
+    power: _bdCalcAttackPower(anchor, opts), // 計算後のパワー
     kind: kind,                          // ★ v3.30.0: 'leader' | 'char'
     owner: owner                         // ★ v3.30.0: 'p1' | 'p2'
   };
 }
 
 // ★ v3.23.0/v3.24.0/v3.26.0: 攻撃元/対象 のパワー自動計算（基礎パワー + DON付与 + modPower）
-function _bdCalcAttackPower(anchor){
-  if(!anchor) return 5000;
+// ★ v3.30.0: opts.includeDon=false で防御側パワー計算（DON効果は自分のターンのみ）
+//            opts.breakdown=true で {base, donAdd, mod, total} を返す
+function _bdCalcAttackPower(anchor, opts){
+  opts = opts || {};
+  var includeDon = opts.includeDon !== false;
+  if(!anchor) return opts.breakdown ? {base:5000, donAdd:0, mod:0, total:5000} : 5000;
   var loc = null;
   if(anchor.zone === 'p1LeaderZone') loc = 'leader_p1';
   else if(anchor.zone === 'p2LeaderZone') loc = 'leader_p2';
   else if(anchor.zone === 'cslot' && anchor.player && anchor.idx != null){
     loc = 'field_'+anchor.player+'_'+anchor.idx;
   }
-  if(!loc) return 5000;
-  if(typeof testCards === 'undefined') return 5000;
+  if(!loc || typeof testCards === 'undefined'){
+    return opts.breakdown ? {base:5000, donAdd:0, mod:0, total:5000} : 5000;
+  }
   var tc = testCards.find(function(c){ return c && c.loc === loc; });
-  if(!tc) return 5000;
+  if(!tc) return opts.breakdown ? {base:5000, donAdd:0, mod:0, total:5000} : 5000;
   var base = parseInt(tc.power) || 0;
   var mod  = (parseInt(tc.modPower) || 0) * 1000;
   var donAdd = 0;
-  if(loc.indexOf('leader_') === 0){
-    var p = loc.replace('leader_','');
-    if(typeof donState !== 'undefined' && donState[p]) donAdd = (parseInt(donState[p].leader) || 0) * 1000;
-  } else if(loc.indexOf('field_') === 0){
-    // ★ v3.26.0 FIX: c.donCount は更新されない（常に0）ため donState[player].char[idx] を参照
-    if(typeof donState !== 'undefined' && anchor.player && anchor.idx != null){
-      var ds = donState[anchor.player];
-      var ix = parseInt(anchor.idx);
-      if(ds && ds.char && ds.char[ix] != null){
-        donAdd = (parseInt(ds.char[ix]) || 0) * 1000;
+  if(includeDon){
+    if(loc.indexOf('leader_') === 0){
+      var p = loc.replace('leader_','');
+      if(typeof donState !== 'undefined' && donState[p]) donAdd = (parseInt(donState[p].leader) || 0) * 1000;
+    } else if(loc.indexOf('field_') === 0){
+      // ★ v3.26.0 FIX: c.donCount は更新されない（常に0）ため donState[player].char[idx] を参照
+      if(typeof donState !== 'undefined' && anchor.player && anchor.idx != null){
+        var ds = donState[anchor.player];
+        var ix = parseInt(anchor.idx);
+        if(ds && ds.char && ds.char[ix] != null){
+          donAdd = (parseInt(ds.char[ix]) || 0) * 1000;
+        }
       }
     }
   }
   var total = base + donAdd + mod;
-  return total > 0 ? total : 5000;
+  if(total <= 0) total = 5000;
+  if(opts.breakdown){
+    return {base: base, donAdd: donAdd, mod: mod, total: total};
+  }
+  return total;
 }
 // ★ v3.24.0: anchor が指す対象がアクティブなキャラかどうか（リーダー以外、rested!=true）
 function _bdAnchorIsActiveChar(anchor){
@@ -4136,7 +4152,8 @@ function bdSubmitAttackDeclare(){
   // ★ v3.25.0: 攻撃元カードの情報（画像/名前）も同送、防御モーダルで表示
   var atkCardInfo = _bdGetAnchorCardInfo(_bdPendingFrom);
   // ★ v3.30.0: 対象カードの情報も同送（防御モーダルで「誰→誰」を表示）
-  var tgtCardInfo = _bdGetAnchorCardInfo(_bdPendingTo);
+  // 対象は防御側 → ドン効果は乗らない（相手ターンのため）
+  var tgtCardInfo = _bdGetAnchorCardInfo(_bdPendingTo, {includeDon: false});
   pendingBattle = {
     id:'bd_'+Date.now()+'_'+Math.floor(Math.random()*1000),
     phase:'awaiting_def',
@@ -4278,13 +4295,16 @@ function _bdRenderAttackerCard(b){
     var imgTag = hasImg
       ? '<img src="'+imgUrl+'" alt="'+nm+'" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'no-img\');">'
       : '';
+    // ★ v3.30.0: 攻撃側=⚔ 防御側=🛡 で双方ともパワー表示
+    var pwIcon = side==='atk' ? '⚔' : '🛡';
+    var pwCls  = side==='atk' ? 'bda-power' : 'bda-power def';
     return ''
       + '<div class="bda-side bda-'+side+'">'
       +   '<div class="bda-img'+(hasImg?'':' no-img')+'">' + imgTag + '</div>'
       +   '<div class="bda-info">'
       +     '<div class="bda-label">'+label+'</div>'
       +     '<div class="bda-name">'+nm+'</div>'
-      +     (side==='atk' ? '<div class="bda-power">⚔ '+pw+'</div>' : '')
+      +     '<div class="'+pwCls+'">'+pwIcon+' '+pw+'</div>'
       +   '</div>'
       + '</div>';
   }
@@ -4445,23 +4465,31 @@ function bdRenderDefDraft(){
   try{ _bdRenderLiveTotal(); }catch(e){}
 }
 // ★ v3.29.0: 防御合計パワーを計算
+// ★ v3.30.0: 防御時はドン加算なし（ドン効果は自分のターンのみ）+ 内訳表示用に baseRaw/baseMod を返す
 function _bdCalcDefenseTotal(){
   if(!_bdDefDraft || !pendingBattle) return null;
   var atkPow = parseInt(pendingBattle.atkPower) || 0;
   var counter = parseInt(_bdDefDraft.counter) || 0;
   var event   = parseInt(_bdDefDraft.event)   || 0;
   var basePow = 0;
+  var baseRaw = 0;   // ★ v3.30.0: カード本体のパワー (DON/mod 抜き)
+  var baseMod = 0;   // ★ v3.30.0: modPower 加算 (DON抜き)
   var label = '';
   if(_bdDefDraft.step === 'blocker'){
     if(_bdDefDraft.blockerCard){
       basePow = parseInt(_bdDefDraft.blockerCard.power) || 0;
+      baseRaw = basePow;
       label = 'ブロッカー';
     }else{
       basePow = 0;
       label = 'ブロッカー未選択';
     }
   }else if(_bdDefDraft.step === 'counter' && pendingBattle.toAnchor){
-    basePow = _bdCalcAttackPower(pendingBattle.toAnchor) || 0;
+    // 防御側は自分のターンではないのでドン効果は乗らない
+    var bd = _bdCalcAttackPower(pendingBattle.toAnchor, {includeDon:false, breakdown:true});
+    basePow = bd.total || 0;
+    baseRaw = bd.base || 0;
+    baseMod = bd.mod || 0;
     var z = pendingBattle.toAnchor.zone;
     label = (z==='p1LeaderZone' || z==='p2LeaderZone') ? 'リーダー' : 'キャラ';
   }
@@ -4469,6 +4497,8 @@ function _bdCalcDefenseTotal(){
   return {
     atk: atkPow,
     base: basePow,
+    baseRaw: baseRaw,
+    baseMod: baseMod,
     counter: counter,
     event: event,
     total: total,
@@ -4589,10 +4619,9 @@ function _bdAutoStartLifeTake(){
   pendingBattle.pendingActionTs = Date.now();
   // ★ v3.27.0: 自分が処理中なので _bdHandledActionId をセットして bdHandleDefenderAction の二重起動を防ぐ
   _bdHandledActionId = pendingBattle.id + '_' + pendingBattle.pendingActionTs;
-  // ライフ表向き + トリガー確認モーダル
+  // ★ v3.30.0: ライフ表面開示は bdFinishLifeTake (トリガー使う/使わない選択後) まで遅延
+  //  → 防御側だけがライフカードを確認、攻撃側には決定後に開示される
   var topData = (lifeCardsData[defRole]||[])[0] || {};
-  faces[0] = true;
-  try{ renderLifeMarks(defRole+'LifeMarks', faces.length); }catch(e){}
   bdOpenTriggerConfirm(topData);
   safeVibrate([60,40,60]);
   _bdPushNow(); // ★ v3.28.0
@@ -4939,13 +4968,26 @@ function bdRequestCharKO(){
 }
 
 // ★ v3.22.0: 防御側でアクションリクエストを処理
+// ★ v3.30.0: 既処理アクションでもポップアップが閉じていれば再表示（取りこぼし対策）
 function bdHandleDefenderAction(b){
   if(!b || !b.pendingAction) return;
   var defRole = b.atkRole==='p1' ? 'p2' : 'p1';
   if(MY_ROLE !== defRole) return; // 防御側のみ実行
-  // 同じアクションを2回処理しないようにIDで管理
-  if(_bdHandledActionId === b.id + '_' + b.pendingActionTs) return;
-  _bdHandledActionId = b.id + '_' + b.pendingActionTs;
+  var actionKey = b.id + '_' + b.pendingActionTs;
+  var alreadyHandled = (_bdHandledActionId === actionKey);
+  if(alreadyHandled){
+    // ★ v3.30.0: 既処理だがポップアップが閉じている → 受入れ→自動表示が失敗した可能性
+    // → ポップアップを再表示してユーザーが操作できるようにする
+    if(b.pendingAction === 'lifeTake'){
+      var ov = _bdEl('triggerConfirmOverlay');
+      if(ov && !ov.classList.contains('show')){
+        var topData = (lifeCardsData[defRole]||[])[0] || {};
+        try{ bdOpenTriggerConfirm(topData); }catch(e){}
+      }
+    }
+    return;
+  }
+  _bdHandledActionId = actionKey;
   if(b.pendingAction === 'lifeTake'){
     bdDefenderHandleLifeTake(b, defRole);
   } else if(b.pendingAction === 'charKO'){
@@ -4970,10 +5012,8 @@ function bdDefenderHandleLifeTake(b, defRole){
     return;
   }
   var topData = (lifeCardsData[defRole]||[])[0] || {};
-  // ライフカードを表向きに
-  lifeFaces[0] = true;
-  try{ renderLifeMarks(defRole+'LifeMarks', lifeFaces.length); }catch(e){}
-  // トリガー確認モーダル表示
+  // ★ v3.30.0: ライフ表面開示は bdFinishLifeTake (トリガー使う/使わない選択後) まで遅延
+  //  → 防御側だけがライフカードを確認、攻撃側には決定後に開示される
   bdOpenTriggerConfirm(topData);
   safeVibrate([60,40,60]);
 }
@@ -5029,6 +5069,15 @@ function bdOpenTriggerConfirm(cardData){
     wrap.appendChild(nm);
     cardBox.appendChild(wrap);
   }
+  // ★ v3.30.0: 攻撃元ロールを動的に表示（P1/P2 ハードコード排除）
+  //  ライフは確定後に攻撃側へ開示されるため「公開しました」→「確認してください」
+  try{
+    var info = _bdEl('tcInfo');
+    if(info && pendingBattle && pendingBattle.atkRole){
+      var atkLbl = pendingBattle.atkRole==='p1' ? 'P1' : 'P2';
+      info.textContent = '📥 '+atkLbl+'からライフ取得要求。ライフ上1枚を確認してください。';
+    }
+  }catch(e){}
   ov.classList.add('show');
 }
 function bdCloseTriggerConfirm(){
