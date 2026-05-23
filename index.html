@@ -605,10 +605,15 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 .bd-attacker-card .bda-power.def{color:#22d3ee;}
 .bd-attacker-card .bda-vs{align-self:center;font-size:18px;font-weight:900;color:#ef4444;padding:0 4px;text-shadow:0 0 6px rgba(239,68,68,.6);flex-shrink:0;font-family:'Bebas Neue',sans-serif;}
 /* ★ v3.30.0: フィールド確認トグル */
+/* ★ v3.30.1: 全モーダル(攻撃宣言/防御/結果/トリガー確認)で利用可能に拡張 */
 .bd-bar-btn.field-peek{background:rgba(34,211,238,.18);color:#22d3ee;border-color:rgba(34,211,238,.5);}
 .bd-bar-btn.field-peek:active{transform:scale(.96);}
+.bd-title-peek{display:inline-flex;align-items:center;justify-content:center;width:30px;height:24px;margin-right:4px;background:rgba(34,211,238,.18);color:#22d3ee;border:1px solid rgba(34,211,238,.5);border-radius:6px;cursor:pointer;font-size:14px;line-height:1;padding:0;vertical-align:middle;}
+.bd-title-peek:active{transform:scale(.94);}
 #battleDeclareOverlay.field-peek .bd-panel{opacity:0;pointer-events:none;transform:scale(.95);transition:opacity .18s,transform .18s;}
 #battleDeclareOverlay.field-peek{background:transparent!important;pointer-events:none;}
+#triggerConfirmOverlay.field-peek #triggerConfirmPanel{opacity:0;pointer-events:none;transform:scale(.95);transition:opacity .18s,transform .18s;}
+#triggerConfirmOverlay.field-peek{background:transparent!important;pointer-events:none;}
 #bdFieldPeekFab{position:fixed;right:14px;bottom:14px;z-index:9700;display:none;align-items:center;gap:6px;padding:10px 14px;background:linear-gradient(180deg,rgba(13,26,36,.96),rgba(15,26,45,.96));border:2px solid rgba(34,211,238,.7);border-radius:24px;color:#22d3ee;font-weight:900;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.55);cursor:pointer;pointer-events:auto;letter-spacing:1px;}
 #bdFieldPeekFab.show{display:inline-flex;}
 #bdFieldPeekFab:active{transform:scale(.97);}
@@ -1674,7 +1679,7 @@ function fbStartListen() {
 <!-- ★ v3.6.0: バトル宣言モーダル（攻撃側） -->
 <div id="battleDeclareOverlay">
   <div class="bd-panel" id="bdAttackPanel">
-    <div class="bd-title"><span>⚔ アタック宣言</span><span class="bd-close" id="bdAtkClose">✕</span></div>
+    <div class="bd-title"><span>⚔ アタック宣言</span><span style="display:inline-flex;align-items:center;gap:4px;"><button type="button" class="bd-title-peek" id="bdAtkFieldPeek" title="フィールド確認">👁</button><span class="bd-close" id="bdAtkClose">✕</span></span></div>
     <!-- ★ v3.7.0: ドラッグで設定したルート表示 -->
     <div class="bd-sec" id="bdAtkRouteSec" style="display:none">アタック</div>
     <div class="bd-route" id="bdAtkRoute" style="display:none">―</div>
@@ -1802,6 +1807,8 @@ function fbStartListen() {
       <span id="bdResBarSummary" style="font-size:12px;color:#bcd;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📡 応答待ち...</span>
       <!-- ★ v3.14.0: 応答待ち中だけ表示する取消ボタン -->
       <button class="bd-bar-btn cancel-decl" id="bdResBarCancel" style="display:none;">↩ 取消</button>
+      <!-- ★ v3.30.1: フィールド確認 -->
+      <button class="bd-bar-btn field-peek" id="bdResFieldPeek" title="フィールド確認">👁</button>
       <button class="bd-bar-btn confirm-attacker" id="bdResBarOk">✓ 確認</button>
       <button class="bd-bar-btn toggle"  id="bdResBarExpand">▼ 拡大</button>
     </div>
@@ -1828,7 +1835,7 @@ function fbStartListen() {
 <div id="triggerConfirmOverlay">
   <div id="triggerConfirmPanel">
     <!-- ★ v3.26.3: 右上の ✕ 閉じる(中断確認) -->
-    <div class="tc-title"><span>⚡ トリガー確認</span><span class="tc-close" id="tcAbort" title="中断">✕</span></div>
+    <div class="tc-title"><span>⚡ トリガー確認</span><span style="display:inline-flex;align-items:center;gap:6px;"><button type="button" class="bd-title-peek" id="tcFieldPeek" title="フィールド確認">👁</button><span class="tc-close" id="tcAbort" title="中断">✕</span></span></div>
     <div class="tc-body" id="tcBody">
       <!-- ★ v3.30.0: 攻撃元の表示を動的に切替 / ライフ開示は確定後に行うため文言修正 -->
       <div class="tc-info" id="tcInfo">📥 ライフ取得要求。ライフ上1枚を確認してください。</div>
@@ -3732,19 +3739,26 @@ function _bdHideOverlay(){
   ov.classList.remove('show');
   ov.classList.remove('expanded');
   // ★ v3.30.0: 閉じる時はフィールド確認モードも解除
-  ov.classList.remove('field-peek');
-  var fab=_bdEl('bdFieldPeekFab'); if(fab) fab.classList.remove('show');
+  bdToggleFieldPeek(false, 'battleDeclareOverlay');
 }
-// ★ v3.30.0: モーダルを一時的に隠してフィールドを確認する
-function bdToggleFieldPeek(peek){
-  var ov=_bdEl('battleDeclareOverlay'); if(!ov) return;
+// ★ v3.30.0 / v3.30.1: モーダルを一時的に隠してフィールドを確認する
+//   v3.30.1: 攻撃宣言/防御/結果/トリガー確認 すべてのモーダルから利用可能
+//   FAB は「現在 peek 中のモーダル」を覚えておき、戻すボタンで復帰させる
+var _bdPeekActiveOv = null;
+function bdToggleFieldPeek(peek, overlayId){
+  // overlayId 未指定時は現在 peek 中のものを優先 / それも無ければ既定の battleDeclareOverlay
+  overlayId = overlayId || _bdPeekActiveOv || 'battleDeclareOverlay';
+  var ov=_bdEl(overlayId); if(!ov) return;
   var fab=_bdEl('bdFieldPeekFab');
-  var isPeek = (peek===undefined) ? !ov.classList.contains('field-peek') : !!peek;
+  var hasClass = ov.classList.contains('field-peek');
+  var isPeek = (peek===undefined) ? !hasClass : !!peek;
   if(isPeek){
     ov.classList.add('field-peek');
+    _bdPeekActiveOv = overlayId;
     if(fab) fab.classList.add('show');
   }else{
     ov.classList.remove('field-peek');
+    if(_bdPeekActiveOv === overlayId) _bdPeekActiveOv = null;
     if(fab) fab.classList.remove('show');
   }
 }
@@ -4235,9 +4249,8 @@ function bdOpenDefenseModal(b){
   _bdShowOverlay();
   var _ov = document.getElementById('battleDeclareOverlay');
   _ov.classList.add('expanded');
-  // ★ v3.30.0: 新しい防御モーダルを開く時はフィールド確認モードを解除
-  _ov.classList.remove('field-peek');
-  var _fab=_bdEl('bdFieldPeekFab'); if(_fab) _fab.classList.remove('show');
+  // ★ v3.30.0 / v3.30.1: 新しい防御モーダルを開く時はフィールド確認モードを解除
+  bdToggleFieldPeek(false, 'battleDeclareOverlay');
   try{ _bdAttackFlash(); }catch(e){} // ★ v3.24.0: 防御側にも赤フラッシュ
   safeVibrate([80,40,80,40,120]);
 }
@@ -5082,6 +5095,8 @@ function bdOpenTriggerConfirm(cardData){
 }
 function bdCloseTriggerConfirm(){
   _bdEl('triggerConfirmOverlay').classList.remove('show');
+  // ★ v3.30.1: トリガー確認モーダル閉鎖時は peek も解除
+  bdToggleFieldPeek(false, 'triggerConfirmOverlay');
   _bdTriggerCardData = null;
 }
 // ★ v3.26.3 / v3.28.0: トリガー確認の中断
@@ -5372,7 +5387,11 @@ function bdInitButtons(){
     ['bdResBarExpand',  function(){ bdSetExpanded('bdResultPanel', true); }],
     ['bdResCollapse',   function(){ bdSetExpanded('bdResultPanel', false); }],
     // ★ v3.30.0: フィールド確認トグル（防御パネル + FAB）
-    ['bdDefFieldPeek',  function(){ bdToggleFieldPeek(true); }],
+    // ★ v3.30.1: 攻撃宣言/結果/トリガー確認モーダルからも peek 可能に
+    ['bdDefFieldPeek',  function(){ bdToggleFieldPeek(true, 'battleDeclareOverlay'); }],
+    ['bdAtkFieldPeek',  function(){ bdToggleFieldPeek(true, 'battleDeclareOverlay'); }],
+    ['bdResFieldPeek',  function(){ bdToggleFieldPeek(true, 'battleDeclareOverlay'); }],
+    ['tcFieldPeek',     function(){ bdToggleFieldPeek(true, 'triggerConfirmOverlay'); }],
     ['bdFieldPeekFab',  function(){ bdToggleFieldPeek(false); }]
   ];
   pairs.forEach(function(p){
