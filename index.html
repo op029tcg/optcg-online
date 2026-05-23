@@ -4776,7 +4776,23 @@ function _bdAutoProcessBlocker(player, blockerCard, ko){
 }
 
 // ── 結果通知モーダル（P1側）
+// ★ v3.31.0: 後続アクション(ライフ取得/KO) 不要時はモーダルを開かずトーストだけで完結
+function _bdResultNeedsAction(b){
+  if(!b || !b.toAnchor) return false;
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
+  // ブロッカーが生存(ko!==true) なら攻撃失敗 → 後続なし
+  return !blockerResp || blockerResp.ko === true;
+}
 function bdOpenResultModal(b){
+  // ★ v3.31.0 Step1: アタックがブロックで止まった等、後続なしのケースはモーダルを開かない
+  if(!_bdResultNeedsAction(b)){
+    // bdConfirmResult が saveState → pendingBattle = null → toast まで一括処理してくれる
+    try{ bdConfirmResult(); }catch(e){}
+    safeVibrate([40,30,40]);
+    return;
+  }
   _bdEl('bdResMine').innerHTML = _bdSummaryText(b);
   // ★ v3.18.0: パワー表示ではなく結果バッジ表示に変更
   var rb = _bdResultBadge(b);
