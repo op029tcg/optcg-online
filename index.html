@@ -614,6 +614,21 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 #battleDeclareOverlay.field-peek{background:transparent!important;pointer-events:none;}
 #triggerConfirmOverlay.field-peek #triggerConfirmPanel{opacity:0;pointer-events:none;transform:scale(.95);transition:opacity .18s,transform .18s;}
 #triggerConfirmOverlay.field-peek{background:transparent!important;pointer-events:none;}
+/* ★ v3.31.0 Step2: 防御3択を盤面のターゲット上に直接表示 */
+#bdFieldDefChoice{position:fixed;z-index:9650;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;}
+#bdFieldDefChoice .fdc-info{background:rgba(0,0,0,.88);color:#fff;padding:5px 12px;border-radius:14px;font-size:11.5px;font-weight:700;letter-spacing:.5px;pointer-events:auto;border:1px solid rgba(239,68,68,.55);box-shadow:0 4px 12px rgba(0,0,0,.6);}
+#bdFieldDefChoice .fdc-row{display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:center;}
+.fdc-chip{display:inline-flex;align-items:center;gap:4px;padding:9px 12px;border-radius:22px;border:2px solid;background:rgba(13,26,36,.96);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.55);letter-spacing:.5px;}
+.fdc-chip.accept{border-color:#34d399;color:#34d399;}
+.fdc-chip.counter{border-color:#22d3ee;color:#22d3ee;}
+.fdc-chip.blocker{border-color:#f59e0b;color:#f59e0b;}
+.fdc-chip:active{transform:scale(.96);}
+@keyframes fdcChipIn{from{opacity:0;transform:scale(.7) translateY(-8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.fdc-chip{animation:fdcChipIn .25s cubic-bezier(.16,1,.3,1) both;}
+.fdc-chip.counter{animation-delay:.05s;}
+.fdc-chip.blocker{animation-delay:.1s;}
+.battle-target-highlight{outline:3px solid #ef4444!important;outline-offset:2px;animation:battleTargetPulse 1s ease-in-out infinite;border-radius:6px;}
+@keyframes battleTargetPulse{0%,100%{outline-color:#ef4444;box-shadow:0 0 18px rgba(239,68,68,.7);}50%{outline-color:#fbbf24;box-shadow:0 0 24px rgba(251,191,36,.75);}}
 #bdFieldPeekFab{position:fixed;right:14px;bottom:14px;z-index:9700;display:none;align-items:center;gap:6px;padding:10px 14px;background:linear-gradient(180deg,rgba(13,26,36,.96),rgba(15,26,45,.96));border:2px solid rgba(34,211,238,.7);border-radius:24px;color:#22d3ee;font-weight:900;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.55);cursor:pointer;pointer-events:auto;letter-spacing:1px;}
 #bdFieldPeekFab.show{display:inline-flex;}
 #bdFieldPeekFab:active{transform:scale(.97);}
@@ -4221,28 +4236,94 @@ function _bdAttackFlash(){
   bf.classList.add('attack-flash');
   setTimeout(function(){ bf.classList.remove('attack-flash'); }, 600);
 }
+// ★ v3.31.0 Step2: 防御3択を盤面のターゲット上に floating chips で表示
+function bdShowFieldDefenseChoice(b){
+  if(!b) return;
+  _bdInitDefDraft(b);
+  bdHideFieldDefenseChoice();
+  var targetEl = (typeof arrowAnchorEl==='function') ? arrowAnchorEl(b.toAnchor) : null;
+  if(!targetEl){
+    // フォールバック: ターゲット要素が取れなければ従来のモーダル
+    bdOpenDefenseModal(b);
+    return;
+  }
+  var atkRole = b.atkRole==='p1' ? 'P1' : 'P2';
+  var atkPow  = b.atkPower || '―';
+  var box = document.createElement('div');
+  box.id = 'bdFieldDefChoice';
+  box.innerHTML =
+    '<div class="fdc-info">⚔ '+atkRole+' '+atkPow+' → 防御を選択</div>' +
+    '<div class="fdc-row">' +
+      '<button type="button" class="fdc-chip accept"  data-act="accept">✓ 受入れる</button>' +
+      '<button type="button" class="fdc-chip counter" data-act="counter">🛡 カウンター</button>' +
+      '<button type="button" class="fdc-chip blocker" data-act="blocker">🛡 ブロック</button>' +
+    '</div>';
+  document.body.appendChild(box);
+  // 位置決め: ターゲットの直下に配置、画面外なら直上にフォールバック
+  var rect = targetEl.getBoundingClientRect();
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var bbox = box.getBoundingClientRect();
+  var cx = rect.left + rect.width/2;
+  var left = Math.max(8, Math.min(vw - bbox.width - 8, cx - bbox.width/2));
+  var top;
+  if(rect.bottom + bbox.height + 14 <= vh){
+    top = rect.bottom + 10;
+  }else{
+    top = Math.max(8, rect.top - bbox.height - 10);
+  }
+  box.style.left = left + 'px';
+  box.style.top  = top  + 'px';
+  // ターゲットをハイライト (赤→黄パルス)
+  targetEl.classList.add('battle-target-highlight');
+  // chip クリック → 各防御フローへ
+  box.querySelectorAll('.fdc-chip').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var act = btn.getAttribute('data-act');
+      bdHideFieldDefenseChoice();
+      if(act === 'accept')       bdAcceptAttack();
+      else if(act === 'counter') bdOpenDefenseModal(b, 'counter');
+      else if(act === 'blocker') bdOpenDefenseModal(b, 'blocker');
+    });
+  });
+  try{ _bdAttackFlash(); }catch(e){}
+  safeVibrate([80,40,80,40,120]);
+}
+function bdHideFieldDefenseChoice(){
+  var el = document.getElementById('bdFieldDefChoice');
+  if(el) el.remove();
+  document.querySelectorAll('.battle-target-highlight').forEach(function(e){
+    e.classList.remove('battle-target-highlight');
+  });
+}
 
 // ── 防御応答モーダル（P2側）
 var _bdDefDraft = null; // {responses:[], memo:''}
-function bdOpenDefenseModal(b){
-  // ★ v3.11.0/v3.12.0/v3.13.0/v3.15.0/v3.16.0: シンプルなモデル
+// ★ v3.31.0 Step2: draft の初期化を切り出し (chip経由でも再利用)
+function _bdInitDefDraft(b){
+  if(!b) return;
   _bdDefDraft = {
     counter:   0,
     event:     0,
     eventCost: 0,
     blocker:   false,
     blockerCard: null,
-    blockerKO: false, // ★ v3.21.0: ブロッカーがKOされるか（トラッシュ送り）
+    blockerKO: false,
     memo: b.memo || '',
     step: 'choice',
     usedCards: []
   };
+}
+function bdOpenDefenseModal(b, initialStep){
+  // ★ v3.31.0 Step2: chip 経由で既に初期化済みなら再初期化しない
+  if(!_bdDefDraft) _bdInitDefDraft(b);
+  // chip が出ていれば閉じる (chipとモーダルの併存防止)
+  try{ bdHideFieldDefenseChoice(); }catch(e){}
   _bdEl('bdDefBarPower').textContent = _bdPowerBadge(b);
   // ★ v3.25.0: 攻撃カード情報を表示
   try{ _bdRenderAttackerCard(b); }catch(e){}
   var memoEl = _bdEl('bdDefMemo'); if(memoEl) memoEl.value = _bdDefDraft.memo;
   bdRenderDefDraft();
-  bdSetDefStep('choice');
+  bdSetDefStep(initialStep || 'choice');
   bdRenderDefHand();
   bdRenderActiveDon(); // ★ v3.16.0
   _bdShowOnly('bdDefendPanel');
@@ -4776,7 +4857,23 @@ function _bdAutoProcessBlocker(player, blockerCard, ko){
 }
 
 // ── 結果通知モーダル（P1側）
+// ★ v3.31.0: 後続アクション(ライフ取得/KO) 不要時はモーダルを開かずトーストだけで完結
+function _bdResultNeedsAction(b){
+  if(!b || !b.toAnchor) return false;
+  var responses = (b.responses||[]).slice();
+  if(!Array.isArray(responses)) responses = Object.values(responses);
+  var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
+  // ブロッカーが生存(ko!==true) なら攻撃失敗 → 後続なし
+  return !blockerResp || blockerResp.ko === true;
+}
 function bdOpenResultModal(b){
+  // ★ v3.31.0 Step1: アタックがブロックで止まった等、後続なしのケースはモーダルを開かない
+  if(!_bdResultNeedsAction(b)){
+    // bdConfirmResult が saveState → pendingBattle = null → toast まで一括処理してくれる
+    try{ bdConfirmResult(); }catch(e){}
+    safeVibrate([40,30,40]);
+    return;
+  }
   _bdEl('bdResMine').innerHTML = _bdSummaryText(b);
   // ★ v3.18.0: パワー表示ではなく結果バッジ表示に変更
   var rb = _bdResultBadge(b);
@@ -5213,7 +5310,13 @@ function bdReshowCurrent(){
   if(!pendingBattle) return;
   if(pendingBattle.phase==='awaiting_def'){
     if(MY_ROLE && MY_ROLE !== pendingBattle.atkRole){
-      bdOpenDefenseModal(pendingBattle);
+      // ★ v3.31.0 Step2: 既に counter/blocker step に進んでいればモーダル復帰、
+      //                  choice step なら盤面 chips を復帰
+      if(_bdDefDraft && _bdDefDraft.step && _bdDefDraft.step !== 'choice'){
+        bdOpenDefenseModal(pendingBattle, _bdDefDraft.step);
+      }else{
+        bdShowFieldDefenseChoice(pendingBattle);
+      }
     }else{
       // 攻撃側は応答待ち（中央小ポップアップ）
       _bdEl('bdResMine').innerHTML = _bdSummaryText(pendingBattle);
@@ -5263,11 +5366,12 @@ function bdOnFirebaseSync(snap){
       toast('↩ 相手が防御をやり直し中…');
     }
     if(b.phase==='awaiting_def' && MY_ROLE && MY_ROLE !== b.atkRole){
-      // 防御側: 新しい宣言が来たらモーダル表示
+      // 防御側: 新しい宣言が来たら盤面上に防御3択を表示
+      // ★ v3.31.0 Step2: モーダルではなく field chips でフィールドを隠さない
       if(_bdSeenId !== b.id){
         _bdSeenId = b.id;
-        bdOpenDefenseModal(b);
-        // ターンバーのバトルボタンをパルス（モーダルを閉じても気付ける）
+        bdShowFieldDefenseChoice(b);
+        // ターンバーのバトルボタンをパルス（chipを誤って閉じても気付ける）
         var bb=_bdEl('btnBattleDeclare'); if(bb) bb.classList.add('battle-pending');
       }
     }else if(b.phase==='resolving' && MY_ROLE === b.atkRole){
@@ -5311,6 +5415,8 @@ function bdOnFirebaseSync(snap){
       _bdHideOverlay();
       // ★ v3.26.1: トリガー確認モーダルも強制クローズ（取消や手動リセット時の取り残し対策）
       try{ bdCloseTriggerConfirm(); }catch(e){}
+      // ★ v3.31.0 Step2: 盤面の防御 chips も片付ける
+      try{ bdHideFieldDefenseChoice(); }catch(e){}
       var bb=_bdEl('btnBattleDeclare'); if(bb) bb.classList.remove('battle-pending');
     }
   }
@@ -5330,6 +5436,7 @@ function manualResetBattleState(){
   // 全ポップアップを閉じる
   try{ _bdHideOverlay(); }catch(e){}
   try{ bdCloseTriggerConfirm(); }catch(e){} // ★ v3.26.3: トリガー確認モーダルも閉じる
+  try{ bdHideFieldDefenseChoice(); }catch(e){} // ★ v3.31.0 Step2: 盤面 chips
   try{ document.getElementById('arrowEditOverlay').classList.remove('show'); }catch(e){}
   // ⚔ ドラッグモード解除
   try{ if(typeof battleMode!=='undefined' && battleMode){ bdExitMode(); } }catch(e){}
