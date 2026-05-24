@@ -529,7 +529,14 @@ body.arrow-mode .battle-hand-card,body.arrow-mode .cslot,body.arrow-mode .uzone,
 #triggerConfirmPanel .tc-btn.use{background:linear-gradient(135deg,#a17a18,#ffd54a);color:#0a0a0a;}
 #triggerConfirmPanel .tc-btn.no {background:rgba(255,255,255,.1);color:#aab;}
 /* 拡大ポップアップ状態 */
-.bd-panel.expanded{padding:14px 18px 16px;max-height:80vh;overflow-y:auto;}
+/* ★ v3.32.1: 縦長コンテンツ用のスクロール強化 (iOS慣性スクロール + スクロールバー可視化) */
+.bd-panel.expanded{padding:14px 18px 16px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;}
+.bd-panel.expanded::-webkit-scrollbar{width:6px;}
+.bd-panel.expanded::-webkit-scrollbar-track{background:rgba(0,0,0,.2);border-radius:3px;}
+.bd-panel.expanded::-webkit-scrollbar-thumb{background:rgba(34,211,238,.45);border-radius:3px;}
+.bd-panel.expanded::-webkit-scrollbar-thumb:hover{background:rgba(34,211,238,.7);}
+/* スクロール可能なことを示す: 下端に薄いグラデーション (内容が下に続く時) */
+.bd-panel.expanded::after{content:'';position:sticky;bottom:0;left:0;right:0;height:14px;background:linear-gradient(to bottom,transparent,rgba(13,26,36,.85));pointer-events:none;display:block;margin-top:-14px;}
 .bd-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
 .bd-panel .bd-title{color:#ef4444;}
 .bd-panel.def .bd-title{color:#22d3ee;}
@@ -615,10 +622,11 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 #triggerConfirmOverlay.field-peek #triggerConfirmPanel{opacity:0;pointer-events:none;transform:scale(.95);transition:opacity .18s,transform .18s;}
 #triggerConfirmOverlay.field-peek{background:transparent!important;pointer-events:none;}
 /* ★ v3.31.0 Step2: 防御3択を盤面のターゲット上に直接表示 */
-#bdFieldDefChoice{position:fixed;z-index:9650;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;}
+/* ★ v3.32.1: chip 4個 (リーダー効果含む) を画面幅に収める + 1行優先 */
+#bdFieldDefChoice{position:fixed;z-index:9650;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;max-width:calc(100vw - 16px);}
 #bdFieldDefChoice .fdc-info{background:rgba(0,0,0,.88);color:#fff;padding:5px 12px;border-radius:14px;font-size:11.5px;font-weight:700;letter-spacing:.5px;pointer-events:auto;border:1px solid rgba(239,68,68,.55);box-shadow:0 4px 12px rgba(0,0,0,.6);}
-#bdFieldDefChoice .fdc-row{display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:center;}
-.fdc-chip{display:inline-flex;align-items:center;gap:4px;padding:9px 12px;border-radius:22px;border:2px solid;background:rgba(13,26,36,.96);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.55);letter-spacing:.5px;}
+#bdFieldDefChoice .fdc-row{display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;justify-content:center;}
+.fdc-chip{display:inline-flex;align-items:center;gap:3px;padding:8px 9px;border-radius:20px;border:2px solid;background:rgba(13,26,36,.96);color:#fff;font-weight:900;font-size:11.5px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.55);letter-spacing:.3px;white-space:nowrap;}
 .fdc-chip.accept{border-color:#34d399;color:#34d399;}
 .fdc-chip.counter{border-color:#22d3ee;color:#22d3ee;}
 .fdc-chip.blocker{border-color:#f59e0b;color:#f59e0b;}
@@ -1322,7 +1330,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.0</div>
+    <div class="logo-ver">BATTLE v3.32.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1338,7 +1346,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.0</div>
+    <div class="logo-ver">BATTLE v3.32.1</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1357,7 +1365,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.0</div>
+    <div class="logo-ver">BATTLE v3.32.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1380,7 +1388,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.0</div>
+    <div class="logo-ver">BATTLE v3.32.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1400,7 +1408,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.0</div>
+    <div class="logo-ver">BATTLE v3.32.1</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -4294,10 +4302,10 @@ function bdShowFieldDefenseChoice(b){
   box.innerHTML =
     '<div class="fdc-info">⚔ '+atkRole+' '+atkPow+' → 防御を選択</div>' +
     '<div class="fdc-row">' +
-      '<button type="button" class="fdc-chip accept"  data-act="accept">✓ 受入れる</button>' +
+      '<button type="button" class="fdc-chip accept"  data-act="accept">✓ 受入</button>' +
       '<button type="button" class="fdc-chip counter" data-act="counter">🛡 カウンター</button>' +
       '<button type="button" class="fdc-chip blocker" data-act="blocker">🛡 ブロック</button>' +
-      '<button type="button" class="fdc-chip leader"  data-act="leader">🎴 リーダー効果</button>' +
+      '<button type="button" class="fdc-chip leader"  data-act="leader">🎴 効果</button>' +
     '</div>';
   document.body.appendChild(box);
   // 位置決め: ターゲットの直下に配置、画面外なら直上にフォールバック
