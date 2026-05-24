@@ -629,6 +629,20 @@ body.battle-mode .battle-hand-card,body.battle-mode .cslot,body.battle-mode .uzo
 .fdc-chip.blocker{animation-delay:.1s;}
 .battle-target-highlight{outline:3px solid #ef4444!important;outline-offset:2px;animation:battleTargetPulse 1s ease-in-out infinite;border-radius:6px;}
 @keyframes battleTargetPulse{0%,100%{outline-color:#ef4444;box-shadow:0 0 18px rgba(239,68,68,.7);}50%{outline-color:#fbbf24;box-shadow:0 0 24px rgba(251,191,36,.75);}}
+/* ★ v3.32.0: 防御時のリーダー効果 (案B+ クイックボタン4つ) */
+.bd-le-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.bd-le-btn{flex:1;min-width:62px;padding:9px 6px;border-radius:10px;border:1.5px solid;background:rgba(13,26,36,.7);color:#fff;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:.4px;transition:transform .12s,background .12s,box-shadow .12s;}
+.bd-le-btn.p1k,.bd-le-btn.p2k{border-color:#22d3ee;color:#22d3ee;}
+.bd-le-btn.ko{border-color:#fbbf24;color:#fbbf24;}
+.bd-le-btn.memo{border-color:#a78bfa;color:#a78bfa;}
+.bd-le-btn.active{box-shadow:0 0 0 2px currentColor inset;}
+.bd-le-btn.active.p1k,.bd-le-btn.active.p2k{background:rgba(34,211,238,.22);}
+.bd-le-btn.active.ko{background:rgba(251,191,36,.22);}
+.bd-le-btn.active.memo{background:rgba(167,139,250,.22);}
+.bd-le-btn:active{transform:scale(.94);}
+.bd-result-badge.leader{background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(139,92,246,.18));border:2px solid #a78bfa;color:#c4b5fd;}
+.fdc-chip.leader{border-color:#a78bfa;color:#a78bfa;}
+.fdc-chip.leader{animation-delay:.15s;}
 #bdFieldPeekFab{position:fixed;right:14px;bottom:14px;z-index:9700;display:none;align-items:center;gap:6px;padding:10px 14px;background:linear-gradient(180deg,rgba(13,26,36,.96),rgba(15,26,45,.96));border:2px solid rgba(34,211,238,.7);border-radius:24px;color:#22d3ee;font-weight:900;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.55);cursor:pointer;pointer-events:auto;letter-spacing:1px;}
 #bdFieldPeekFab.show{display:inline-flex;}
 #bdFieldPeekFab:active{transform:scale(.97);}
@@ -1308,7 +1322,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.31.0</div>
+    <div class="logo-ver">BATTLE v3.32.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1324,7 +1338,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.31.0</div>
+    <div class="logo-ver">BATTLE v3.32.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1343,7 +1357,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.31.0</div>
+    <div class="logo-ver">BATTLE v3.32.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1366,7 +1380,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.31.0</div>
+    <div class="logo-ver">BATTLE v3.32.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1386,7 +1400,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.31.0</div>
+    <div class="logo-ver">BATTLE v3.32.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -1764,6 +1778,15 @@ function fbStartListen() {
         <input type="text" class="bd-step-val event-val" id="bdDefExpEventCostVal" value="0" inputmode="numeric" maxlength="2">
         <button class="bd-step-btn event-step" id="bdDefExpEventCostUp">+1</button>
       </div>
+      <!-- ★ v3.32.0: リーダー効果 クイックボタン4つ -->
+      <div class="bd-sec" style="color:#a78bfa;">🎴 リーダー効果（任意）</div>
+      <div class="bd-le-row">
+        <button type="button" class="bd-le-btn p1k"  data-le="p1000">+1000</button>
+        <button type="button" class="bd-le-btn p2k"  data-le="p2000">+2000</button>
+        <button type="button" class="bd-le-btn ko"   data-le="koProof">KO耐性</button>
+        <button type="button" class="bd-le-btn memo" data-le="memoOnly">メモ確認</button>
+      </div>
+      <input type="text" class="bd-input" id="bdDefLeMemo" placeholder="例: ナミ手札捨て+2000 / 効果の詳細" maxlength="40" style="margin-top:6px;display:none;">
       <div class="bd-sec">メモ（任意）</div>
       <input type="text" class="bd-input" id="bdDefMemo" placeholder="例: トリガー発動 など" maxlength="40">
       <div class="bd-bar-row" style="margin-top:10px;">
@@ -3832,6 +3855,8 @@ function _bdMakeSummary(b){
   var totalEvent  = eventResps.reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
   var totalCost   = eventResps.reduce(function(s,r){return s+(parseInt(r.cost)||0);},0); // ★ v3.13.0
   var hasBlocker = responses.some(function(r){ return r.type==='blocker'; });
+  // ★ v3.32.0: リーダー効果
+  var leResp = responses.find(function(r){ return r.type==='leaderEffect'; });
   var resultParts = [];
   if(hasBlocker) resultParts.push('🛡 ブロック処理');
   if(totalCounter>0) resultParts.push('🛡 カウンター処理 +'+totalCounter);
@@ -3839,6 +3864,11 @@ function _bdMakeSummary(b){
     var evText = '🎴 イベントカウンター +'+totalEvent;
     if(totalCost>0) evText += '（ドン×'+totalCost+'）';
     resultParts.push(evText);
+  }
+  if(leResp){
+    if(leResp.koProof) resultParts.push('🎴 リーダー効果(KO耐性)');
+    else if(leResp.memoOnly) resultParts.push('🎴 リーダー効果');
+    else if((parseInt(leResp.power)||0)>0) resultParts.push('🎴 リーダー効果 +'+leResp.power);
   }
   var resultText = resultParts.length ? resultParts.join(' / ') : '✅ アタック成功';
   var summary = atk + ' → ' + resultText;
@@ -3881,7 +3911,16 @@ function _bdResultBadge(b){
   var totalEvent = responses.filter(function(r){return r.type==='event';})
                             .reduce(function(s,r){return s+(parseInt(r.value)||0);},0);
   var hasBlocker = responses.some(function(r){return r.type==='blocker';});
-  // 優先度: ブロッカー > 併用 > 単独 > 防御なし
+  // ★ v3.32.0: リーダー効果
+  var leResp = responses.find(function(r){return r.type==='leaderEffect';});
+  // 優先度: リーダー効果(KO耐性/単独防御成立) > ブロッカー > 併用 > 単独
+  if(leResp && (leResp.koProof || leResp.memoOnly || (parseInt(leResp.power)||0)>0)){
+    if(leResp.koProof) return {text:'🎴 リーダー効果で防御 (KO耐性)', cls:'leader'};
+    if(leResp.memoOnly) return {text:'🎴 リーダー効果で防御', cls:'leader'};
+    // power のみ → 他の応答と合算した結果が成功かは攻撃側にも見える形で
+    // → ここではバッジだけ「リーダー効果で防御」表現
+    return {text:'🎴 リーダー効果で防御 +'+leResp.power, cls:'leader'};
+  }
   if(hasBlocker) return {text:'🛡 ブロック防御', cls:'block'};
   if(totalCounter>0 && totalEvent>0) return {text:'🛡+🎴 防御', cls:'event'};
   if(totalEvent>0) return {text:'🎴 イベント使用', cls:'event'};
@@ -4251,12 +4290,14 @@ function bdShowFieldDefenseChoice(b){
   var atkPow  = b.atkPower || '―';
   var box = document.createElement('div');
   box.id = 'bdFieldDefChoice';
+  // ★ v3.32.0: リーダー効果 chip (4個目) を追加
   box.innerHTML =
     '<div class="fdc-info">⚔ '+atkRole+' '+atkPow+' → 防御を選択</div>' +
     '<div class="fdc-row">' +
       '<button type="button" class="fdc-chip accept"  data-act="accept">✓ 受入れる</button>' +
       '<button type="button" class="fdc-chip counter" data-act="counter">🛡 カウンター</button>' +
       '<button type="button" class="fdc-chip blocker" data-act="blocker">🛡 ブロック</button>' +
+      '<button type="button" class="fdc-chip leader"  data-act="leader">🎴 リーダー効果</button>' +
     '</div>';
   document.body.appendChild(box);
   // 位置決め: ターゲットの直下に配置、画面外なら直上にフォールバック
@@ -4283,6 +4324,8 @@ function bdShowFieldDefenseChoice(b){
       if(act === 'accept')       bdAcceptAttack();
       else if(act === 'counter') bdOpenDefenseModal(b, 'counter');
       else if(act === 'blocker') bdOpenDefenseModal(b, 'blocker');
+      // ★ v3.32.0: リーダー効果 chip → カウンター step (リーダー効果セクション付き) を開く
+      else if(act === 'leader')  bdOpenDefenseModal(b, 'counter');
     });
   });
   try{ _bdAttackFlash(); }catch(e){}
@@ -4310,7 +4353,15 @@ function _bdInitDefDraft(b){
     blockerKO: false,
     memo: b.memo || '',
     step: 'choice',
-    usedCards: []
+    usedCards: [],
+    // ★ v3.32.0: リーダー効果 (案B+)
+    //   power=1000/2000/任意 / koProof=KO耐性 / memoOnly=メモのみ
+    leaderEffect: {
+      power: 0,
+      koProof: false,
+      memoOnly: false,
+      memo: ''
+    }
   };
 }
 function bdOpenDefenseModal(b, initialStep){
@@ -4555,6 +4606,8 @@ function bdRenderDefDraft(){
   // ★ v3.21.0: KO チェックボックスの状態を反映
   var koEl = _bdEl('bdDefBlockerKO');
   if(koEl) koEl.checked = !!_bdDefDraft.blockerKO;
+  // ★ v3.32.0: リーダー効果ボタンの active 状態 + メモ欄を反映
+  try{ bdRenderLeaderEffectButtons(); }catch(e){}
   // ★ v3.29.0: 防御合計パワーのライブ表示
   try{ _bdRenderLiveTotal(); }catch(e){}
 }
@@ -4565,6 +4618,12 @@ function _bdCalcDefenseTotal(){
   var atkPow = parseInt(pendingBattle.atkPower) || 0;
   var counter = parseInt(_bdDefDraft.counter) || 0;
   var event   = parseInt(_bdDefDraft.event)   || 0;
+  // ★ v3.32.0: リーダー効果
+  var le = _bdDefDraft.leaderEffect || {power:0, koProof:false, memoOnly:false};
+  var lePow = parseInt(le.power) || 0;
+  var leKoProof = !!le.koProof;
+  var leMemoOnly = !!le.memoOnly;
+  var leUsed = lePow>0 || leKoProof || leMemoOnly;
   var basePow = 0;
   var baseRaw = 0;   // ★ v3.30.0: カード本体のパワー (DON/mod 抜き)
   var baseMod = 0;   // ★ v3.30.0: modPower 加算 (DON抜き)
@@ -4587,7 +4646,9 @@ function _bdCalcDefenseTotal(){
     var z = pendingBattle.toAnchor.zone;
     label = (z==='p1LeaderZone' || z==='p2LeaderZone') ? 'リーダー' : 'キャラ';
   }
-  var total = basePow + counter + event;
+  var total = basePow + counter + event + lePow;
+  // ★ v3.32.0: KO耐性が立っていればパワー差に関わらず防御成功扱い
+  var success = (basePow > 0 && total >= atkPow) || (leKoProof && basePow > 0);
   return {
     atk: atkPow,
     base: basePow,
@@ -4595,9 +4656,13 @@ function _bdCalcDefenseTotal(){
     baseMod: baseMod,
     counter: counter,
     event: event,
+    lePow: lePow,
+    leKoProof: leKoProof,
+    leMemoOnly: leMemoOnly,
+    leUsed: leUsed,
     total: total,
     label: label,
-    success: basePow > 0 && total >= atkPow,
+    success: success,
     hasBase: basePow > 0
   };
 }
@@ -4623,11 +4688,18 @@ function _bdRenderLiveTotal(){
     return;
   }
   box.classList.add(r.success ? 'success' : 'fail');
-  var flag = r.success ? '✅ 防御成功' : '❌ 防御失敗';
+  // ★ v3.32.0: KO耐性使用時は "🎴 リーダー効果で防御" を優先表示
+  var flag;
+  if(r.leKoProof) flag = '🎴 リーダー効果で防御 (KO耐性)';
+  else if(r.success && r.leUsed) flag = '🎴 リーダー効果で防御';
+  else if(r.success) flag = '✅ 防御成功';
+  else flag = '❌ 防御失敗';
   var parts = [];
   parts.push(_bdEscapeHTML(r.label)+' '+r.base);
   if(r.counter>0) parts.push('+🛡'+r.counter);
   if(r.event>0)   parts.push('+🎴'+r.event);
+  if(r.lePow>0)   parts.push('+🎴'+r.lePow);
+  if(r.leMemoOnly) parts.push('+🎴メモ');
   box.innerHTML =
     '🛡 <span class="lt-num def">'+r.total+'</span> '+
     '<span class="lt-vs">vs</span> ⚔ <span class="lt-num atk">'+r.atk+'</span> '+
@@ -4640,6 +4712,43 @@ function bdSetCounter(v){
   if(v<0) v=0; if(v>99000) v=99000;
   _bdDefDraft.counter = v;
   bdRenderDefDraft();
+}
+// ★ v3.32.0: リーダー効果のクイックボタン操作
+//   key: 'p1000' | 'p2000' | 'koProof' | 'memoOnly'
+//   再タップで OFF (トグル) / power 系は他の power と排他
+function bdToggleLeaderEffect(key){
+  if(!_bdDefDraft) return;
+  if(!_bdDefDraft.leaderEffect) _bdDefDraft.leaderEffect = {power:0, koProof:false, memoOnly:false, memo:''};
+  var le = _bdDefDraft.leaderEffect;
+  if(key==='p1000'){
+    le.power = (le.power===1000) ? 0 : 1000;
+  } else if(key==='p2000'){
+    le.power = (le.power===2000) ? 0 : 2000;
+  } else if(key==='koProof'){
+    le.koProof = !le.koProof;
+  } else if(key==='memoOnly'){
+    le.memoOnly = !le.memoOnly;
+  }
+  bdRenderLeaderEffectButtons();
+  bdRenderDefDraft(); // ライブ集計とライブ totalを更新
+}
+function bdRenderLeaderEffectButtons(){
+  if(!_bdDefDraft || !_bdDefDraft.leaderEffect) return;
+  var le = _bdDefDraft.leaderEffect;
+  var map = {
+    'p1000':  le.power===1000,
+    'p2000':  le.power===2000,
+    'koProof': le.koProof,
+    'memoOnly': le.memoOnly
+  };
+  Object.keys(map).forEach(function(k){
+    var btn = document.querySelector('.bd-le-btn[data-le="'+k+'"]');
+    if(btn){ btn.classList.toggle('active', !!map[k]); }
+  });
+  // メモ入力欄: いずれかが ON なら表示
+  var any = le.power>0 || le.koProof || le.memoOnly;
+  var memoIn = _bdEl('bdDefLeMemo');
+  if(memoIn){ memoIn.style.display = any ? '' : 'none'; }
 }
 function bdAddCounter(delta){
   if(!_bdDefDraft) return;
@@ -4771,6 +4880,20 @@ function bdSubmitDefense(){
     blockerCardForProcess = _bdDefDraft.blockerCard;
     blockerKOFlag = !!_bdDefDraft.blockerKO;
   }
+  // ★ v3.32.0: リーダー効果
+  var le = _bdDefDraft.leaderEffect || {};
+  var lePow = parseInt(le.power)||0;
+  if(lePow>0 || le.koProof || le.memoOnly){
+    var leMemoEl = _bdEl('bdDefLeMemo');
+    var leMemo = leMemoEl ? (leMemoEl.value||'').trim().slice(0,40) : '';
+    responses.push({
+      type: 'leaderEffect',
+      power:    lePow,
+      koProof:  !!le.koProof,
+      memoOnly: !!le.memoOnly,
+      memo:     leMemo
+    });
+  }
   pendingBattle.phase = 'resolving';
   pendingBattle.responses = responses;
   var memoEl = _bdEl('bdDefMemo');
@@ -4863,6 +4986,9 @@ function _bdResultNeedsAction(b){
   var responses = (b.responses||[]).slice();
   if(!Array.isArray(responses)) responses = Object.values(responses);
   var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
+  // ★ v3.32.0: リーダー効果 KO耐性が立っていれば後続アクション不要
+  var leResp = responses.find(function(r){ return r.type==='leaderEffect'; });
+  if(leResp && leResp.koProof) return false;
   // ブロッカーが生存(ko!==true) なら攻撃失敗 → 後続なし
   return !blockerResp || blockerResp.ko === true;
 }
@@ -4876,10 +5002,11 @@ function bdOpenResultModal(b){
   }
   _bdEl('bdResMine').innerHTML = _bdSummaryText(b);
   // ★ v3.18.0: パワー表示ではなく結果バッジ表示に変更
+  // ★ v3.32.0: 'leader' クラスを追加 (リーダー効果防御)
   var rb = _bdResultBadge(b);
   var pwEl = _bdEl('bdResBarPower');
   pwEl.textContent = rb.text;
-  ['success','counter','event','block'].forEach(function(c){ pwEl.classList.remove('result-'+c); });
+  ['success','counter','event','block','leader'].forEach(function(c){ pwEl.classList.remove('result-'+c); });
   pwEl.classList.add('result-'+rb.cls);
   // バー部分の詳細サマリ（攻撃力 + 防御内訳）
   var atkPow = b.atkPower ? b.atkPower : '―';
@@ -4945,6 +5072,17 @@ function bdOpenResultModal(b){
           });
           box.appendChild(ewrap);
         }
+      }else if(r.type==='leaderEffect'){
+        // ★ v3.32.0: リーダー効果バッジ
+        var bg = document.createElement('div');
+        bg.className = 'bd-result-badge leader';
+        var lbl, sub;
+        if(r.koProof){ lbl='🎴 リーダー効果で防御'; sub='🛡 KO耐性（対象は残る）'; }
+        else if(r.memoOnly){ lbl='🎴 リーダー効果で防御'; sub='📝 詳細はメモ参照'; }
+        else { lbl='🎴 リーダー効果で防御 +'+(parseInt(r.power)||0); sub=''; }
+        if(r.memo) sub = (sub?sub+' / ':'') + '📝 '+_bdEscapeHTML(r.memo);
+        bg.innerHTML = _bdEscapeHTML(lbl) + (sub ? '<span class="bd-rb-sub">'+sub+'</span>' : '');
+        box.appendChild(bg);
       }else if(r.type==='blocker'){
         var bg = document.createElement('div');
         bg.className = 'bd-result-badge block';
@@ -5504,6 +5642,25 @@ function bdInitButtons(){
   pairs.forEach(function(p){
     var el=_bdEl(p[0]); if(el && !el._bdBound){ el._bdBound=true; el.addEventListener('click', p[1]); }
   });
+  // ★ v3.32.0: リーダー効果クイックボタン (4個まとめてバインド)
+  document.querySelectorAll('.bd-le-btn').forEach(function(btn){
+    if(btn._bdBound) return;
+    btn._bdBound = true;
+    btn.addEventListener('click', function(){
+      var key = btn.getAttribute('data-le');
+      if(key) bdToggleLeaderEffect(key);
+    });
+  });
+  // ★ v3.32.0: リーダー効果メモの直接入力 → draft に反映
+  var leMemoEl = _bdEl('bdDefLeMemo');
+  if(leMemoEl && !leMemoEl._bdBound){
+    leMemoEl._bdBound = true;
+    leMemoEl.addEventListener('input', function(){
+      if(_bdDefDraft && _bdDefDraft.leaderEffect){
+        _bdDefDraft.leaderEffect.memo = (leMemoEl.value||'').slice(0,40);
+      }
+    });
+  }
   // カウンター値の直接入力（counter step + blocker step）
   ['bdDefExpCounterVal','bdDefBlkCounterVal'].forEach(function(id){
     var el=_bdEl(id); if(!el || el._bdBound) return; el._bdBound=true;
