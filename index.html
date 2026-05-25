@@ -1336,7 +1336,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.3</div>
+    <div class="logo-ver">BATTLE v3.33.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1352,7 +1352,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.3</div>
+    <div class="logo-ver">BATTLE v3.33.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1371,7 +1371,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.3</div>
+    <div class="logo-ver">BATTLE v3.33.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1394,7 +1394,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.3</div>
+    <div class="logo-ver">BATTLE v3.33.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1414,7 +1414,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.32.3</div>
+    <div class="logo-ver">BATTLE v3.33.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3884,6 +3884,10 @@ function _bdMakeSummary(b){
     else if(leResp.memoOnly) resultParts.push('L効果');
     else if((parseInt(leResp.power)||0)>0) resultParts.push('L効果 +'+leResp.power);
   }
+  // ★ v3.33.0: 自動 KO 済みなら明示 (auto:true で攻撃側でも区別)
+  if(b.actionDone && b.actionDone.charKO && b.actionResult && b.actionResult.auto){
+    resultParts.push('🪦 自動KO');
+  }
   var resultText = resultParts.length ? resultParts.join(' / ') : '✅ アタック成功';
   var summary = atk + ' → ' + resultText;
   var grandTotal = totalCounter + totalEvent;
@@ -4921,17 +4925,75 @@ function bdSubmitDefense(){
   var restedCount  = _bdAutoRestDon(myPlayer, restDonCount);
   // ★ v3.21.0: ブロッカー自動処理（KO→トラッシュ / 生存→レスト）
   var blockerResult = _bdAutoProcessBlocker(myPlayer, blockerCardForProcess, blockerKOFlag);
+  // ★ v3.33.0: バトル結果が防御失敗 (キャラ攻撃) なら自動 KO + DON 回収
+  var autoKOName = null;
+  if(_bdShouldAutoKO(pendingBattle, responses)){
+    autoKOName = _bdExecuteAutoKO(pendingBattle, myPlayer);
+  }
   var notes = [];
   if(trashedCount>0) notes.push('🪦 カード'+trashedCount+'枚をトラッシュへ');
   if(restedCount>0)  notes.push('🎴 ドン'+restedCount+'枚をレストに');
   if(blockerResult==='ko')   notes.push('🪦 ブロッカーをトラッシュへ');
   if(blockerResult==='rest') notes.push('🛡 ブロッカーをレストに');
+  if(autoKOName)             notes.push('🪦 ' + autoKOName + ' を自動KO');
   toast('🛡 応答を送信しました' + (notes.length ? ' / ' + notes.join(' / ') : ''));
   // ★ v3.28.0: 受入れフローでは _bdAutoStartLifeTake が直後に push するのでここはスキップ
   if(!_bdSkipPushOnce){ _bdPushNow(); }
   _bdSkipPushOnce = false;
 }
 var _bdSkipPushOnce = false;
+// ★ v3.33.0: バトル後の自動 KO 判定 / 実行
+//   - キャラ攻撃 (toAnchor.zone==='cslot')
+//   - 防御失敗 (base+counter+event+leaderEffect.power < atkPower)
+//   - KO耐性使用なし
+//   - 生存ブロッカーで防げてない
+function _bdShouldAutoKO(b, responses){
+  if(!b || !b.toAnchor) return false;
+  if(b.toAnchor.zone !== 'cslot') return false;
+  if(!Array.isArray(responses)) responses = (responses ? Object.values(responses) : []);
+  var atkPow = parseInt(b.atkPower) || 0;
+  var totalCounter = 0, totalEvent = 0, totalLePow = 0;
+  var hasBlocker = false, blockerKOFlag = false, hasKoProof = false;
+  responses.forEach(function(r){
+    if(r.type === 'counter')      totalCounter += parseInt(r.value) || 0;
+    else if(r.type === 'event')   totalEvent   += parseInt(r.value) || 0;
+    else if(r.type === 'leaderEffect'){
+      totalLePow += parseInt(r.power) || 0;
+      if(r.koProof) hasKoProof = true;
+    }
+    else if(r.type === 'blocker'){
+      hasBlocker = true;
+      if(r.ko) blockerKOFlag = true;
+    }
+  });
+  if(hasKoProof) return false;                       // KO耐性 → スキップ
+  if(hasBlocker && !blockerKOFlag) return false;     // ブロッカー生存 → スキップ
+  // 対象のベースパワー (DON抜き = 相手ターンのため)
+  var bd = _bdCalcAttackPower(b.toAnchor, {includeDon:false, breakdown:true});
+  var basePow = bd.total || 0;
+  var defenseTotal = basePow + totalCounter + totalEvent + totalLePow;
+  return defenseTotal < atkPow;
+}
+function _bdExecuteAutoKO(b, defRole){
+  if(!b || !b.toAnchor || b.toAnchor.zone !== 'cslot') return null;
+  if(typeof testCards === 'undefined') return null;
+  var targetLoc = 'field_' + b.toAnchor.player + '_' + b.toAnchor.idx;
+  var i = testCards.findIndex(function(x){ return x && x.loc === targetLoc; });
+  if(i < 0) return null;
+  var c = testCards[i];
+  // 付与ドンをレストへ戻してからトラッシュ
+  try{ _returnFieldDons(c.loc); }catch(e){}
+  c.loc = 'trash_' + defRole;
+  c.rested = false;
+  if(typeof _trashAdd === 'function') _trashAdd(defRole, c);
+  try{ renderHand(); }catch(e){}
+  try{ renderField(); }catch(e){}
+  // 攻撃側のボタンが出ないように actionDone と actionResult をセット
+  b.actionResult = {type:'charKO', success:true, cardName: c.name||'', auto:true};
+  b.actionDone = b.actionDone || {};
+  b.actionDone.charKO = true;
+  return c.name || '対象キャラ';
+}
 // ★ v3.17.0: 使用したカウンター札を自動トラッシュ
 function _bdAutoTrashUsedCards(player, usedCards){
   if(!usedCards || !usedCards.length) return 0;
@@ -4980,6 +5042,8 @@ function _bdAutoProcessBlocker(player, blockerCard, ko){
   // リーダーゾーン(loc='leader_*')はブロッカーになり得ないので念のためスキップしない（ルール解釈は手動）
   if(ko){
     // KO: トラッシュ送り
+    // ★ v3.33.0: 付与ドンをレストへ戻してからトラッシュ
+    try{ _returnFieldDons(c.loc); }catch(e){}
     c.loc = 'trash_' + player;
     c.rested = false;
     if(typeof _trashAdd === 'function') _trashAdd(player, c);
@@ -4998,6 +5062,8 @@ function _bdAutoProcessBlocker(player, blockerCard, ko){
 // ★ v3.31.0: 後続アクション(ライフ取得/KO) 不要時はモーダルを開かずトーストだけで完結
 function _bdResultNeedsAction(b){
   if(!b || !b.toAnchor) return false;
+  // ★ v3.33.0: 自動 KO で対象キャラを既にトラッシュ済みなら後続アクション不要
+  if(b.actionDone && b.actionDone.charKO) return false;
   var responses = (b.responses||[]).slice();
   if(!Array.isArray(responses)) responses = Object.values(responses);
   var blockerResp = responses.find(function(r){ return r.type==='blocker'; });
@@ -5297,6 +5363,8 @@ function bdDefenderHandleCharKO(b, defRole){
     return;
   }
   var c = testCards[i];
+  // ★ v3.33.0: 付与ドンをレストへ戻してからトラッシュ
+  try{ _returnFieldDons(c.loc); }catch(e){}
   c.loc = 'trash_'+defRole;
   c.rested = false;
   if(typeof _trashAdd === 'function') _trashAdd(defRole, c);
