@@ -284,6 +284,21 @@ input,textarea{touch-action:auto;}
 /* ★ v3.34.0: 戦闘モーダル表示中は toast を上端へ退避 (ボタンとの被り回避) */
 .toast.high{bottom:auto;top:calc(60px + var(--sb));transform:translateX(-50%) translateY(-12px);}
 .toast.high.v{transform:translateX(-50%) translateY(0)}
+/* ★ v3.35.0: オーナーゲート (パスワード認証 + サービス稼働判定) */
+#gateBlockScreen{position:fixed;inset:0;background:#000;color:#444;font-family:monospace;display:none;align-items:center;justify-content:center;z-index:2147483647;}
+#gateBlockScreen.show{display:flex;}
+#gateBlockScreen .gbs-msg{text-align:center;font-size:18px;line-height:1.5;}
+#gateBlockScreen .gbs-sub{font-size:11px;opacity:.5;letter-spacing:1px;}
+#ownerLoginOverlay{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:2147483647;padding:14px;font-family:'Bebas Neue','Noto Sans JP',sans-serif;}
+#ownerLoginOverlay.show{display:flex;}
+#ownerLoginPanel{width:100%;max-width:320px;background:#0a0e18;border:1px solid rgba(34,211,238,.4);border-radius:12px;padding:28px 22px;color:#fff;box-shadow:0 12px 40px rgba(34,211,238,.15);}
+#ownerLoginPanel .olp-title{font-size:16px;letter-spacing:3px;text-align:center;color:#22d3ee;margin-bottom:18px;}
+#ownerLoginInput{width:100%;padding:12px;font-size:16px;background:#000;border:1px solid #333;border-radius:8px;color:#fff;text-align:center;letter-spacing:6px;margin-bottom:14px;box-sizing:border-box;-webkit-text-security:disc;}
+#ownerLoginSubmit{width:100%;padding:12px;background:linear-gradient(135deg,#0e7490,#22d3ee);border:none;border-radius:8px;color:#000;font-weight:900;font-size:14px;letter-spacing:3px;cursor:pointer;font-family:inherit;}
+#ownerLoginSubmit:active{transform:scale(.97);}
+#ownerLoginErr{margin-top:10px;text-align:center;color:#ef4444;font-size:11px;min-height:14px;letter-spacing:1px;}
+#ownerBadge{display:none;position:fixed;top:max(12px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:2147483646;padding:5px 10px;background:rgba(16,32,28,.95);border:1px solid rgba(74,222,128,.5);border-radius:14px;color:#4ade80;font-size:10px;font-weight:900;letter-spacing:2px;pointer-events:none;font-family:'DM Mono',monospace;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+#ownerBadge.show{display:inline-block;}
 
 /* EMPTY STATE */
 .empty-st{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;color:var(--txt3)}
@@ -944,6 +959,104 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const fbDB = firebase.database();
 
+// ══════ v3.35.0: オーナーゲート ══════
+// オーナー専用URL ?owner=1 → パスワード入力 → 認証成功でハートビート開始
+// 通常ゲスト → /service/heartbeat を一度読み、90秒以内に更新があれば通常進行、なければ404表示
+const OWNER_PASSWORD_HASH = 'ae5f9d9b4b4401d4f50825f9cb96fa8cf4162c5b0d9ab207c194cf7a7b185ab0';
+const _GATE_HEARTBEAT_INTERVAL_MS = 30000; // オーナー: 30秒ごとに heartbeat 書き込み
+const _GATE_HEARTBEAT_TIMEOUT_MS  = 90000; // ゲスト: 90秒以内なら fresh 扱い
+let IS_OWNER = false;
+let _GATE_PASSED = false; // true なら通常進行
+let _gateHeartbeatTimer = null;
+async function _gateSha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function _gateGetEl(id){ return document.getElementById(id); }
+function _gateShow404(){
+  var el = _gateGetEl('gateBlockScreen');
+  if(el){ el.classList.add('show'); }
+  document.body.style.overflow = 'hidden';
+}
+function _gateStartHeartbeat(){
+  if(_gateHeartbeatTimer) return;
+  var tick = function(){ fbDB.ref('service/heartbeat').set(Date.now()).catch(function(){}); };
+  tick();
+  _gateHeartbeatTimer = setInterval(tick, _GATE_HEARTBEAT_INTERVAL_MS);
+  // タブ非表示時はハートビート停止 → 復帰で再開
+  document.addEventListener('visibilitychange', function(){
+    if(!IS_OWNER) return;
+    if(document.visibilityState === 'hidden'){
+      if(_gateHeartbeatTimer){ clearInterval(_gateHeartbeatTimer); _gateHeartbeatTimer = null; }
+    } else if(!_gateHeartbeatTimer){
+      tick();
+      _gateHeartbeatTimer = setInterval(tick, _GATE_HEARTBEAT_INTERVAL_MS);
+    }
+  });
+  // タブクローズ時は heartbeat=0 で即停止のヒント
+  window.addEventListener('beforeunload', function(){
+    if(IS_OWNER){ try{ fbDB.ref('service/heartbeat').set(0); }catch(e){} }
+  });
+}
+function _gateBecomeOwner(){
+  IS_OWNER = true;
+  _GATE_PASSED = true;
+  var ov = _gateGetEl('ownerLoginOverlay'); if(ov) ov.classList.remove('show');
+  var badge = _gateGetEl('ownerBadge'); if(badge) badge.classList.add('show');
+  _gateStartHeartbeat();
+}
+function _gateBindOwnerLogin(){
+  var ov = _gateGetEl('ownerLoginOverlay');
+  var inp = _gateGetEl('ownerLoginInput');
+  var sub = _gateGetEl('ownerLoginSubmit');
+  var err = _gateGetEl('ownerLoginErr');
+  if(!ov || !inp || !sub) return;
+  ov.classList.add('show');
+  setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 100);
+  var handle = async function(){
+    var pw = (inp.value || '').trim();
+    if(!pw){ if(err) err.textContent = 'パスワードを入力'; return; }
+    try {
+      var hash = await _gateSha256(pw);
+      if(hash === OWNER_PASSWORD_HASH){
+        _gateBecomeOwner();
+      } else {
+        if(err) err.textContent = '❌ パスワードが違います';
+        inp.value = '';
+        setTimeout(function(){ if(err) err.textContent = ''; }, 3000);
+      }
+    } catch(e){
+      if(err) err.textContent = '❌ エラー';
+    }
+  };
+  sub.addEventListener('click', handle);
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') handle(); });
+}
+async function _gateCheckGuest(){
+  try {
+    var snap = await fbDB.ref('service/heartbeat').once('value');
+    var hb = parseInt(snap.val()) || 0;
+    var fresh = (Date.now() - hb) < _GATE_HEARTBEAT_TIMEOUT_MS;
+    if(fresh){
+      _GATE_PASSED = true;
+    } else {
+      _gateShow404();
+    }
+  } catch(e){
+    // Firebase 接続失敗 = 安全側に倒して 404
+    _gateShow404();
+  }
+}
+// エントリーポイント — DOM 構築後に実行
+document.addEventListener('DOMContentLoaded', function(){
+  var isOwnerUrl = (_urlP.get('owner') === '1');
+  if(isOwnerUrl){
+    _gateBindOwnerLogin();
+  } else {
+    _gateCheckGuest();
+  }
+});
+
 // ══════ オンライン対戦設定 ══════
 // ★ v3.0: ロビー経由でセット（URLパラメータは後方互換として残す）
 const _urlP = new URLSearchParams(window.location.search);
@@ -1232,6 +1345,18 @@ function fbStartListen() {
 </head>
 <body>
 
+<!-- ★ v3.35.0: オーナーゲート (ハートビートに応じて全画面ブロック / パスワード入力 / 稼働バッジ) -->
+<div id="gateBlockScreen"><div class="gbs-msg">404<br><span class="gbs-sub">Page not found</span></div></div>
+<div id="ownerLoginOverlay">
+  <div id="ownerLoginPanel">
+    <div class="olp-title">🔐 OWNER LOGIN</div>
+    <input type="text" id="ownerLoginInput" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="12">
+    <button id="ownerLoginSubmit" type="button">UNLOCK</button>
+    <div id="ownerLoginErr"></div>
+  </div>
+</div>
+<div id="ownerBadge">🔓 SERVICE OPEN</div>
+
 <!-- SVG card back -->
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
   <symbol id="opback" viewBox="0 0 60 84">
@@ -1339,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.34.0</div>
+    <div class="logo-ver">BATTLE v3.35.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1355,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.34.0</div>
+    <div class="logo-ver">BATTLE v3.35.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1374,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.34.0</div>
+    <div class="logo-ver">BATTLE v3.35.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1397,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.34.0</div>
+    <div class="logo-ver">BATTLE v3.35.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1417,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.34.0</div>
+    <div class="logo-ver">BATTLE v3.35.0</div>
   </div>
   <div class="body">
     <div class="pad">
