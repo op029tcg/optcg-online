@@ -1464,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.35.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.35.2</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.35.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.35.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.35.2</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -7664,8 +7664,20 @@ function setupLeaderTap(player){
       if(lc&&window._cdOpen){modalOpened=true;window._cdOpen(lc);}
     },600);
   },{passive:false});
+  // ★ v3.35.2: Android のタッチドリフトおよびスクロール時の touchcancel に対応
+  //   指が 10px 以上動いたら長押し判定をキャンセル / touchcancel でもクリーンアップ
+  lz.addEventListener('touchmove',e=>{
+    if(!holdTimer)return;
+    var dx=e.touches[0].clientX-pX, dy=e.touches[0].clientY-pY;
+    if(Math.abs(dx)>10||Math.abs(dy)>10){
+      clearTimeout(holdTimer);holdTimer=null;
+    }
+  },{passive:true});
+  lz.addEventListener('touchcancel',()=>{
+    clearTimeout(holdTimer);holdTimer=null;
+  },{passive:true});
   lz.addEventListener('touchend',e=>{
-    e.preventDefault();clearTimeout(holdTimer);
+    e.preventDefault();clearTimeout(holdTimer);holdTimer=null;
     if(donDrag||cardDragState)return;
     if(modalOpened){pT=0;return;}
     if(Date.now()-pT<300&&Math.abs(e.changedTouches[0].clientX-pX)<15&&Math.abs(e.changedTouches[0].clientY-pY)<15){
