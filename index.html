@@ -1464,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.1</div>
+    <div class="logo-ver">BATTLE v3.36.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.1</div>
+    <div class="logo-ver">BATTLE v3.36.2</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.1</div>
+    <div class="logo-ver">BATTLE v3.36.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.1</div>
+    <div class="logo-ver">BATTLE v3.36.2</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.1</div>
+    <div class="logo-ver">BATTLE v3.36.2</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -6419,7 +6419,10 @@ function initCardSystem(){
       }).map(function(c){
         return {id:c.id,face:true,name:c.name,img:c.img||c.image||''};
       });
-      if(handFromTest.length>0) state.hand=handFromTest;
+      // ★ v3.36.2 FIX: 0枚でも無条件代入。従来 `length>0` 条件のため実手札が空になると
+      //   stale な dpState.hand が残り、パネルから存在しないカードを「デッキへ戻す」と
+      //   カードが複製されていた。
+      state.hand=handFromTest;
     } else if(player==='p1'&&p1Hand.length){
       state.hand=p1Hand.map(function(c,i){return{id:i+1,face:true,name:c.name,img:c.image||c.img};});
     }else if(player==='p2'&&p2Hand.length){
@@ -6448,13 +6451,19 @@ function initCardSystem(){
     dpUpdateSelLabel();
   }
   function dpUpdateSelLabel(){
-    var n=dpSelectedCids.size;
-    if(n===0){
+    // ★ v3.36.2 FIX: デッキ選択のみ数えていたため、手札カード選択中にデッキ側を解除すると
+    //   「なし」表示なのにボタンは動作する不整合があった。dpToggleHCard と同じ合算方式に統一。
+    var nDeck=dpSelectedCids.size;
+    var nHand=dpSelectedHcids.size;
+    var total=nDeck+nHand;
+    if(total===0){
       document.getElementById('dpSelNum').textContent='なし';
       ['dpAbTrash','dpAbHand','dpAbDeck'].forEach(function(id){document.getElementById(id).classList.remove('active');});
     }else{
-      document.getElementById('dpSelNum').textContent=n+'枚選択中';
-      ['dpAbTrash','dpAbHand','dpAbDeck'].forEach(function(id){document.getElementById(id).classList.add('active');});
+      document.getElementById('dpSelNum').textContent=total+'枚選択中';
+      // 「手札へ」はデッキカード選択時のみ有効 (手札→手札は無意味)
+      ['dpAbTrash','dpAbDeck'].forEach(function(id){document.getElementById(id).classList.add('active');});
+      document.getElementById('dpAbHand').classList.toggle('active',nDeck>0);
     }
   }
   function dpApplyReveal(){
@@ -6479,7 +6488,11 @@ function initCardSystem(){
   function dpDoTrash(cid){
     var d=dpState[dpCurrentPlayer];var i=dpFindById(cid);if(i<0)return;
     var c=d.deck.splice(i,1)[0];c.face=true;d.trash.unshift(c);
-    testCards.push({id:'dp_trash_'+cid,name:c.name||'NO.'+cid,img:c.img,rested:false,donCount:0,loc:'trash'});
+    // ★ v3.36.2 FIX: 従来ここで testCards に loc:'trash' (プレイヤー名なし) のエントリを
+    //   push していたが、どこからも描画・参照・削除されない不可視 orphan として永久蓄積し
+    //   Firebase 同期され続けていた。トラッシュの実体は dpState.trash (上で unshift 済み)
+    //   が持ち、それ自体が fbPushState で同期されるため testCards への複製は不要。
+    tpUpdateTrashBadge(dpCurrentPlayer,d.trash.length);
     dpRefresh();
     if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
   }
@@ -6525,12 +6538,19 @@ function initCardSystem(){
     var chk=document.createElement('div');var isOn=dpSelectedCids.has(cid);
     chk.className='dp-chk'+(isOn?' on':'');chk.textContent=isOn?'✔':'';
     if(isOn)row.classList.add('selected');
-    chk.addEventListener('touchstart',function(e){
-      e.preventDefault();e.stopPropagation();
+    // ★ v3.36.2 FIX: touchstart のみだったため PC マウスでデッキカード選択が不可能だった。
+    //   トグル処理を共通化し click ハンドラを追加 (touchstart は preventDefault するので
+    //   モバイルで click が合成発火することはなく二重実行しない)。
+    var chkToggle=function(){
       if(dpSelectedCids.has(cid)){dpSelectedCids.delete(cid);row.classList.remove('selected');chk.classList.remove('on');chk.textContent='';}
       else{dpSelectedCids.add(cid);row.classList.add('selected');chk.classList.add('on');chk.textContent='✔';}
       dpUpdateSelLabel();
+    };
+    chk.addEventListener('touchstart',function(e){
+      e.preventDefault();e.stopPropagation();
+      chkToggle();
     },false);
+    chk.addEventListener('click',function(e){e.stopPropagation();chkToggle();});
     row.appendChild(chk);
     var th=document.createElement('div');th.className='dp-th';
     if(c.face&&c.img){var im=document.createElement('img');im.src=c.img;im.alt=c.name||'';im.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';th.appendChild(im);}
@@ -6621,15 +6641,7 @@ function initCardSystem(){
     if(dpSelectedHcids.has(cid)) dpSelectedHcids.delete(cid);
     else dpSelectedHcids.add(cid);
     dpBuildHand(); // 選択状態を再描画
-    // アクションバーに枚数反映
-    var total=dpSelectedCids.size+dpSelectedHcids.size;
-    if(total===0){
-      document.getElementById('dpSelNum').textContent='なし';
-      ['dpAbTrash','dpAbHand','dpAbDeck'].forEach(function(id){document.getElementById(id).classList.remove('active');});
-    } else {
-      document.getElementById('dpSelNum').textContent=total+'枚選択中';
-      ['dpAbTrash','dpAbDeck'].forEach(function(id){document.getElementById(id).classList.add('active');});
-    }
+    dpUpdateSelLabel(); // ★ v3.36.2: 表示ロジックを dpUpdateSelLabel に一本化
   }
   // ★ 手札→TRASH
   function dpDoHandToTrash(cid){
