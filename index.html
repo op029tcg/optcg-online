@@ -1577,7 +1577,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.5</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1593,7 +1593,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.5</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1612,7 +1612,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.5</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1635,7 +1635,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.5</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1655,7 +1655,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.5</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -2212,6 +2212,74 @@ let testCards=[];
 var dpState={p1:{deck:[],trash:[],hand:[]},p2:{deck:[],trash:[],hand:[]}};
 const ldrRested={p1:false,p2:false};
 let battleTurn=1, battleWho='先';
+
+// ══════ v3.36.6: パフォーマンスユーティリティ ══════
+// testCards への線形 find が renderField 1 回で 14 回も走り O(N×slots) になっていたため
+// 1 回構築 → 関数内で使い回す Map<loc, card> ヘルパを追加。
+//   renderField 60 枚デッキ時: 60×14=840 反復 → 60+14=74 反復 (11×高速化)
+function _tcBuildLocIndex(){
+  var byLoc = new Map();
+  if(!testCards) return byLoc;
+  for(var i=0; i<testCards.length; i++){
+    var c=testCards[i];
+    if(!c || !c.loc) continue;
+    // field_X_Y / stage_X / free_X / leader_X はユニーク loc。hand_X は複数あり得るが
+    // ここの用途 (renderField のスロット参照) では使われないため last-write-wins で OK。
+    byLoc.set(c.loc, c);
+  }
+  return byLoc;
+}
+function _tcBuildIdIndex(){
+  var byId = new Map();
+  if(!testCards) return byId;
+  for(var i=0; i<testCards.length; i++){
+    var c=testCards[i];
+    if(!c || !c.id) continue;
+    byId.set(c.id, c);
+  }
+  return byId;
+}
+
+// ★ ドラッグ中の getBoundingClientRect キャッシュ
+// touchmove 毎に `.c-drop` / `.don-drop-zone` を querySelectorAll + 全 forEach で rect 取得
+// → 1 フレーム内で数十回の forced reflow が発生してモバイル fps が大幅低下。
+// ドラッグ開始時に 1 回キャッシュし、touchmove 中は再利用する。
+// 互換性: ドラッグ中はページがスクロール / リサイズしない前提 (touchmove は preventDefault されている)
+var _cDropRectCache = null;
+var _donDropRectCache = null;
+function _getCDropRects(){
+  if(_cDropRectCache) return _cDropRectCache;
+  var arr = [];
+  document.querySelectorAll('.c-drop').forEach(function(el){
+    arr.push({el: el, rect: el.getBoundingClientRect()});
+  });
+  _cDropRectCache = arr;
+  return arr;
+}
+function _getDonDropRects(){
+  if(_donDropRectCache) return _donDropRectCache;
+  var arr = [];
+  document.querySelectorAll('.don-drop-zone').forEach(function(el){
+    arr.push({el: el, rect: el.getBoundingClientRect()});
+  });
+  _donDropRectCache = arr;
+  return arr;
+}
+function _clearDropRectCaches(){
+  _cDropRectCache = null;
+  _donDropRectCache = null;
+}
+// 画面回転やリサイズで rect は変わるためキャッシュを無効化
+window.addEventListener('resize', _clearDropRectCaches);
+window.addEventListener('orientationchange', _clearDropRectCaches);
+// ★ v3.36.6: DON ドラッグ中の drag-over ハイライト更新 (touchmove ハンドラが 5 箇所コピペされていた)
+function _donDropHighlight(x, y){
+  const rects=_getDonDropRects();
+  for(var i=0;i<rects.length;i++){
+    const el=rects[i].el, r=rects[i].rect;
+    el.classList.toggle('drag-over',x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom);
+  }
+}
 
 const CM={赤:'#ef4444',青:'#3b82f6',緑:'#22c55e',黄:'#f59e0b',紫:'#a855f7',黒:'#6b7280'};
 
@@ -3249,7 +3317,7 @@ function initDonSystem(){
         if(_dStarted&&donDrag){
           var pt=donGetXY(ev);donLastXY=pt;
           if(donGhostEl){donGhostEl.style.left=pt.x+'px';donGhostEl.style.top=pt.y+'px';}
-          donAllZones().forEach(function(el){var r=el.getBoundingClientRect();el.classList.toggle('drag-over',pt.x>=r.left&&pt.x<=r.right&&pt.y>=r.top&&pt.y<=r.bottom);});
+          _donDropHighlight(pt.x, pt.y);
         }
       },{passive:false});
       fresh.addEventListener('touchend',function(ev){
@@ -3288,10 +3356,12 @@ function donMove(e){
   if(!donDrag)return; e.preventDefault();
   const p=donGetXY(e);donLastXY=p;
   donGhostEl.style.left=p.x+'px';donGhostEl.style.top=p.y+'px';
-  donAllZones().forEach(el=>{
-    const r=el.getBoundingClientRect();
+  // ★ v3.36.6: rect キャッシュ。touchmove 毎に全 forEach getBoundingClientRect していた
+  const rects=_getDonDropRects();
+  for(var i=0;i<rects.length;i++){
+    const el=rects[i].el, r=rects[i].rect;
     el.classList.toggle('drag-over',p.x>=r.left&&p.x<=r.right&&p.y>=r.top&&p.y<=r.bottom);
-  });
+  }
 }
 function donEnd(e){
   if(!donDrag)return;
@@ -3300,12 +3370,14 @@ function donEnd(e){
   const p=(e.type==='touchend')?donLastXY:donGetXY(e);
   // ★ 移動距離が短い場合はタップとみなしキャンセル（誤移動防止）
   var dx=Math.abs(p.x-(donDrag._startX||0)),dy=Math.abs(p.y-(donDrag._startY||0));
-  if(dx<15&&dy<15){donDrag=null;return;}
+  if(dx<15&&dy<15){donDrag=null; _clearDropRectCaches(); return;}
   let target=null;
-  donAllZones().forEach(el=>{
-    const r=el.getBoundingClientRect();
+  // ★ v3.36.6: rect キャッシュ使用
+  const dRects=_getDonDropRects();
+  for(var i=0;i<dRects.length;i++){
+    const el=dRects[i].el, r=dRects[i].rect;
     if(p.x>=r.left&&p.x<=r.right&&p.y>=r.top&&p.y<=r.bottom)target=el;
-  });
+  }
   if(target){
     const toP=target.dataset.player,toZ=target.dataset.zone;
     const toIdx=target.dataset.idx!=null?parseInt(target.dataset.idx):null;
@@ -3318,6 +3390,7 @@ function donEnd(e){
       donMove2(donDrag.player,donDrag.fromZone,donDrag.fromIdx,toP,toZ,toIdx);
   }
   donDrag=null;
+  _clearDropRectCaches(); // ★ v3.36.6
 }
 function donMove2(fromP,fromZ,fromIdx,toP,toZ,toIdx){
   // 相手ターン中でも自分のDON操作は許可、相手のDON操作のみ禁止
@@ -3373,7 +3446,7 @@ function renderDonState(p){
           if(_aStarted&&donDrag){
             var pp=donGetXY(ev);donLastXY=pp;
             if(donGhostEl){donGhostEl.style.left=pp.x+'px';donGhostEl.style.top=pp.y+'px';}
-            donAllZones().forEach(function(el){var r=el.getBoundingClientRect();el.classList.toggle('drag-over',pp.x>=r.left&&pp.x<=r.right&&pp.y>=r.top&&pp.y<=r.bottom);});
+            _donDropHighlight(pp.x, pp.y);
           }
         },{passive:false});
         az.addEventListener('touchend',function(ev){
@@ -3412,7 +3485,7 @@ function renderDonState(p){
           if(_rStarted&&donDrag){
             var pp=donGetXY(ev);donLastXY=pp;
             if(donGhostEl){donGhostEl.style.left=pp.x+'px';donGhostEl.style.top=pp.y+'px';}
-            donAllZones().forEach(function(el){var r=el.getBoundingClientRect();el.classList.toggle('drag-over',pp.x>=r.left&&pp.x<=r.right&&pp.y>=r.top&&pp.y<=r.bottom);});
+            _donDropHighlight(pp.x, pp.y);
           }
         },{passive:false});
         rz.addEventListener('touchend',function(ev){
@@ -3457,7 +3530,7 @@ function renderDonState(p){
             if(_lStarted&&donDrag){
               var pt=donGetXY(e);donLastXY=pt;
               if(donGhostEl){donGhostEl.style.left=pt.x+'px';donGhostEl.style.top=pt.y+'px';}
-              donAllZones().forEach(function(el){var r=el.getBoundingClientRect();el.classList.toggle('drag-over',pt.x>=r.left&&pt.x<=r.right&&pt.y>=r.top&&pt.y<=r.bottom);});
+              _donDropHighlight(pt.x, pt.y);
             }
           },{passive:false});
           lb.addEventListener('touchend',function(e){
@@ -3507,7 +3580,7 @@ function renderDonState(p){
               if(_bStarted&&donDrag){
                 var pp=donGetXY(e);donLastXY=pp;
                 if(donGhostEl){donGhostEl.style.left=pp.x+'px';donGhostEl.style.top=pp.y+'px';}
-                donAllZones().forEach(function(el){var r=el.getBoundingClientRect();el.classList.toggle('drag-over',pp.x>=r.left&&pp.x<=r.right&&pp.y>=r.top&&pp.y<=r.bottom);});
+                _donDropHighlight(pp.x, pp.y);
               }
             },{passive:false});
             cb.addEventListener('touchend',function(e){
@@ -7481,6 +7554,10 @@ function layoutHandCards(hz,cards,showFace){
   });
 }
 function renderField(){
+  // ★ v3.36.6: testCards のループ内 find を Map 索引化 (O(N×slots) → O(N+slots))
+  const _locIdx = _tcBuildLocIndex();
+  // renderField は cloneNode で .c-drop ノードを差し替えるため、rect キャッシュも無効化
+  _clearDropRectCaches();
   ['p1','p2'].forEach(p=>{
     const area=document.getElementById(p+'CharArea');if(!area)return;
     area.querySelectorAll('.cslot').forEach((slot,i)=>{
@@ -7488,7 +7565,7 @@ function renderField(){
       const fresh=slot.cloneNode(false);
       fresh.dataset.player=p;fresh.dataset.idx=i;fresh.dataset.zone='char';fresh.classList.add('c-drop');
       slot.parentNode.replaceChild(fresh,slot);
-      const c=testCards.find(x=>x.loc===`field_${p}_${i}`);
+      const c=_locIdx.get(`field_${p}_${i}`);
       if(c){
         fresh.classList.add('occupied');fresh.classList.toggle('card-rested',c.rested);fresh.textContent='';
         const cardImgSrc = c.img || resolveCardImg(c.id) || (c.id ? CDN+c.id+'.webp' : '');
@@ -7514,7 +7591,7 @@ function renderField(){
     const sz=document.getElementById(p+'StageZone');if(!sz)return;
     const fresh=sz.cloneNode(false);fresh.id=p+'StageZone';
     sz.parentNode.replaceChild(fresh,sz);fresh.classList.add('c-drop');
-    const c=testCards.find(x=>x.loc===`stage_${p}`);
+    const c=_locIdx.get(`stage_${p}`);
     if(c){
       fresh.textContent='';
       const img=document.createElement('img');img.src=c.img;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';fresh.appendChild(img);
@@ -7527,7 +7604,7 @@ function renderField(){
     // cloneNodeでイベントをリセット
     var freshFz=fz.cloneNode(false);freshFz.id=p+'FreeZone';
     fz.parentNode.replaceChild(freshFz,fz);freshFz.classList.add('c-drop');
-    var fc=testCards.find(x=>x.loc===`free_${p}`);
+    var fc=_locIdx.get(`free_${p}`);
     if(fc){
       freshFz.classList.add('has-card');freshFz.classList.toggle('card-rested',fc.rested);freshFz.textContent='';
       var fImg=document.createElement('img');
@@ -7544,7 +7621,7 @@ function renderField(){
   renderDonState('p1');renderDonState('p2');
   // ★ リーダーのmod状態を反映
   ['p1','p2'].forEach(function(p){
-    var lc=testCards.find(function(x){return x.id==='leader_'+p;});
+    var lc=_locIdx.get('leader_'+p); // ★ v3.36.6: id と loc が同じ値なので loc 索引で OK
     var lz=document.getElementById(p+'LeaderZone');
     if(!lc||!lz)return;
     var pb=lz.querySelector('.power-badge');
@@ -7955,6 +8032,7 @@ function endDeckDrag(){
   }
   // ★ v3.36.3 FIX: デッキ D&D が Firebase 同期されていなかった (ドロー等が相手に反映されない)
   if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
+  _clearDropRectCaches(); // ★ v3.36.6
 }
 
 function setupLeaderTap(player){
@@ -8011,6 +8089,7 @@ function _abortCardDrag(){
       el.classList.remove('c-hover');el.classList.remove('drop-candidate');
     });
   }catch(e){}
+  _clearDropRectCaches(); // ★ v3.36.6
 }
 
 function startCDrag(e,id,srcPlayer){
@@ -8039,19 +8118,22 @@ function onCMouseMove(e){
 }
 function onCMouseUp(){if(cardDragState)endCDrag();}
 function hlZones(x,y,srcPlayer){
+  // ★ v3.36.6: rect キャッシュ使用。touchmove 毎に querySelectorAll + 全 forEach で
+  //   getBoundingClientRect を呼んでいた → forced reflow でモバイル fps が落ちていた。
   const sp=srcPlayer||(cardDragState&&cardDragState._srcPlayer)||null;
-  document.querySelectorAll('.c-drop').forEach(el=>{
-    const r=el.getBoundingClientRect();
+  const rects=_getCDropRects();
+  for(var i=0;i<rects.length;i++){
+    const el=rects[i].el, r=rects[i].rect;
     const over=x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
     // 手札ドラッグ時はプレイヤー制約（char/stageは同プレイヤーのみ）
     if(over&&sp){
       const zone=el.dataset.zone,elPlayer=el.dataset.player;
       if((zone==='char'||zone==='stage')&&elPlayer&&elPlayer!==sp){
-        el.classList.remove('c-hover');return;
+        el.classList.remove('c-hover');continue;
       }
     }
     el.classList.toggle('c-hover',over);
-  });
+  }
 }
 function endCDrag(){
   var myP4=MY_ROLE==='p2'?'p2':'p1';
@@ -8073,17 +8155,19 @@ function endCDrag(){
   const {x,y}=cardLastXY;
   let target=null,minA=Infinity;
   const sp=cardDragState&&cardDragState._srcPlayer||null;
-  document.querySelectorAll('.c-drop').forEach(el=>{
-    const r=el.getBoundingClientRect();
+  // ★ v3.36.6: rect キャッシュ使用 (ドラッグ中にずっと使い回しているもの)
+  const rects=_getCDropRects();
+  for(var i=0;i<rects.length;i++){
+    const el=rects[i].el, r=rects[i].rect;
     if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){
       // プレイヤー制約：char/stageは同プレイヤーのみ
       if(sp){
         const zone=el.dataset.zone,elPlayer=el.dataset.player;
-        if((zone==='char'||zone==='stage')&&elPlayer&&elPlayer!==sp)return;
+        if((zone==='char'||zone==='stage')&&elPlayer&&elPlayer!==sp)continue;
       }
       const a=r.width*r.height;if(a<minA){minA=a;target=el;}
     }
-  });
+  }
   if(target)moveCard(cardDragState.id,target);
   else{
     // ドロップ先なし→ライフD&Dの一時カードを削除（元に戻す）
@@ -8092,6 +8176,7 @@ function endCDrag(){
     if(ti>=0)testCards.splice(ti,1);
   }
   cardDragState=null;
+  _clearDropRectCaches(); // ★ v3.36.6
 }
 // ── 共通ユーティリティ ──────────────────────────────────────────────
 function _lifeCount(player){
