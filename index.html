@@ -1141,17 +1141,25 @@ function fbPushStateDebounced() {
 
 // Firebaseからゲーム状態を受信して画面を更新する
 var fbListening = false;
+var _fbFirstSnapshot = true; // ★ v3.36.4: 再接続初回スナップショット判定 (fbStartListen で都度リセット)
 // セッションID：バトル開始時に生成、古いデータを無視するため
 var FB_SESSION_ID = null;
 
 // ══ URLロールに応じてUIを切り替える ══
-function initRoleUI() {
+// ★ v3.36.4: opts.fresh で新規セッション扱いを切替。
+//   再接続時に fresh=false で呼ぶと p2Ready/handReady 等の room フラグを破壊しない。
+//   従来は無条件破壊で、P1 リロード時に既に接続済みだった P2 の Ready 状態を消し
+//   「P2 接続待ち」のまま固まっていた。
+var _p2ReadyListenerRef = null; // ★ v3.36.4: リスナーリーク防止用
+function initRoleUI(opts) {
+  opts = opts || {};
+  var isFresh = (opts.fresh !== false); // 既定 true (後方互換)
   var izP1 = document.getElementById('importZoneP1');
   var izP2 = document.getElementById('importZoneP2');
   var importRow = document.querySelector('.import-row');
   if (!importRow) {
-    // DOMがまだ準備できていない場合は再試行
-    setTimeout(initRoleUI, 200);
+    // DOMがまだ準備できていない場合は再試行 (opts を保持)
+    setTimeout(function(){ initRoleUI(opts); }, 200);
     return;
   }
   // ★ 既存のP1/P2ボックスをリセット（ロビー経由で再実行される場合のため）
@@ -1172,14 +1180,20 @@ function initRoleUI() {
     waitBox.style.cssText = 'flex:1;background:rgba(220,38,38,.08);border:1.5px dashed rgba(220,38,38,.35);border-radius:16px;padding:20px 10px;text-align:center;cursor:default;';
     waitBox.innerHTML = '<div style="font-size:24px;margin-bottom:6px;">⏳</div><div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:4px;">P2 接続待ち...</div><div style="font-size:9px;color:#5a6a84;line-height:1.6;">相手にURLを共有<br>?room='+FB_ROOM+'&amp;role=p2</div>';
     importRow.appendChild(waitBox);
-    fbDB.ref('rooms/'+FB_ROOM+'/p2Ready').set(false);
-    fbDB.ref('rooms/'+FB_ROOM+'/gameStarted').set(null);
-    fbDB.ref('rooms/'+FB_ROOM+'/p2DeckInfo').set(null);
-    fbDB.ref('rooms/'+FB_ROOM+'/handReady').set(null);
-    fbDB.ref('rooms/'+FB_ROOM+'/battleReady').set(null);
-    fbDB.ref('rooms/'+FB_ROOM+'/handGo').set(null);
-    fbDB.ref('rooms/'+FB_ROOM+'/battleGo').set(null);
-    fbDB.ref('rooms/' + FB_ROOM + '/p2Ready').on('value', function(snap) {
+    // ★ v3.36.4: 新規セッション時のみフラグを初期化 (再接続時は既存状態を保持)
+    if (isFresh) {
+      fbDB.ref('rooms/'+FB_ROOM+'/p2Ready').set(false);
+      fbDB.ref('rooms/'+FB_ROOM+'/gameStarted').set(null);
+      fbDB.ref('rooms/'+FB_ROOM+'/p2DeckInfo').set(null);
+      fbDB.ref('rooms/'+FB_ROOM+'/handReady').set(null);
+      fbDB.ref('rooms/'+FB_ROOM+'/battleReady').set(null);
+      fbDB.ref('rooms/'+FB_ROOM+'/handGo').set(null);
+      fbDB.ref('rooms/'+FB_ROOM+'/battleGo').set(null);
+    }
+    // ★ v3.36.4: p2Ready リスナーの累積防止 (再ホスト時にも安全に off→on)
+    if (_p2ReadyListenerRef) { try{ _p2ReadyListenerRef.off('value'); }catch(e){} _p2ReadyListenerRef = null; }
+    _p2ReadyListenerRef = fbDB.ref('rooms/' + FB_ROOM + '/p2Ready');
+    _p2ReadyListenerRef.on('value', function(snap) {
       var box = document.getElementById('p2WaitBox');
       if (!box) return;
       if (snap.val() === true) {
@@ -1225,43 +1239,63 @@ function fbStartListen() {
   // ★ battleRefが未初期化の場合はスキップ（ロビー未通過時の安全対策）
   if (!battleRef) { console.warn('fbStartListen: battleRef is null, skipping'); return; }
   fbListening = true;
+  // ★ v3.36.4: 再接続/リロード時の初回スナップショット判定。
+  //   従来は `updatedBy === MY_ROLE` で自分の最終 push を捨てていたが、
+  //   「自分が最後に操作→リロード」の頻出ケースで盤面が空のまま固まっていた。
+  //   初回 1 回だけは自分由来データも全適用して状態復元する。
+  _fbFirstSnapshot = true;
   // ★ battleState専用パスのみ監視（p2Ready等のノイズを完全排除）
   battleRef.on('value', function(snapshot) {
     var snap = snapshot.val();
     if (!snap) return;
-    // 自分が送信したデータは無視
-    if (snap.updatedBy === MY_ROLE) return;
+    // ★ v3.36.4: 初回フラグを「処理開始時に即降ろす」(例外時のロック防止)
+    var isFirst = _fbFirstSnapshot;
+    _fbFirstSnapshot = false;
+    // 自分が送信したデータは無視 (※ 初回は復元のためスキップ)
+    if (!isFirst && snap.updatedBy === MY_ROLE) return;
     // ★ battleTurnが含まれていないデータは無視（インポート等のFirebase更新を除外）
     if (snap.battleTurn === undefined || snap.battleTurn === null) return;
     // ★ セッションIDチェック：一致する場合のみ処理（古いキャッシュを除外）
     if (!snap.sessionId) return;
     if (FB_SESSION_ID && snap.sessionId !== FB_SESSION_ID) return;
     try {
-      if(snap.testCards){
-        // ★ Firebase RTDBは配列をobjectで返すことがあるため配列に変換
-        var rawCards = snap.testCards;
-        if(!Array.isArray(rawCards)) rawCards = Object.values(rawCards);
-        // 自分の手札・Freeゾーンは自分で管理（相手データで上書きしない）
-        var myHandLoc = MY_ROLE==='p2' ? 'hand_p2' : 'hand';
-        var myFreeLoc = MY_ROLE==='p2' ? 'free_p2' : 'free_p1';
-        var myHandCards = testCards.filter(function(c){ return c.loc===myHandLoc; });
-        var myFreeCards = testCards.filter(function(c){ return c.loc===myFreeLoc; });
-        testCards = rawCards;
-        // 自分の手札・Freeゾーンを元に戻す
-        testCards = testCards.filter(function(c){ return c && c.loc!==myHandLoc && c.loc!==myFreeLoc; });
-        myHandCards.forEach(function(c){ testCards.push(c); });
-        myFreeCards.forEach(function(c){ testCards.push(c); });
-      }
-      // 相手側のdpStateのみ受け取る（自分側は自分で管理）
       // ★ Firebase RTDBはdpState配列もobjectで返す場合があるため変換
       function toArr(v){ return v ? (Array.isArray(v)?v:Object.values(v)) : []; }
-      if(MY_ROLE==='p2'){
-        // P2は相手(P1)のdpStateを受け取る
+      if(snap.testCards){
+        var rawCards = snap.testCards;
+        if(!Array.isArray(rawCards)) rawCards = Object.values(rawCards);
+        if(isFirst){
+          // ★ v3.36.4: 初回は自分側も含めて完全復元
+          //   従来は initCardSystem が空 importData/p1Hand からダミー5枚を生成し、
+          //   受信時の「自分の手札保護」ルールでダミーが恒久置換していた。
+          testCards = rawCards.filter(function(c){ return c; });
+        } else {
+          // 通常時: 自分の手札・Freeゾーンは自分で管理（相手データで上書きしない）
+          var myHandLoc = MY_ROLE==='p2' ? 'hand_p2' : 'hand';
+          var myFreeLoc = MY_ROLE==='p2' ? 'free_p2' : 'free_p1';
+          var myHandCards = testCards.filter(function(c){ return c.loc===myHandLoc; });
+          var myFreeCards = testCards.filter(function(c){ return c.loc===myFreeLoc; });
+          testCards = rawCards;
+          testCards = testCards.filter(function(c){ return c && c.loc!==myHandLoc && c.loc!==myFreeLoc; });
+          myHandCards.forEach(function(c){ testCards.push(c); });
+          myFreeCards.forEach(function(c){ testCards.push(c); });
+        }
+      }
+      if(isFirst){
+        // ★ v3.36.4: 初回は自分側 dpState も復元
+        if(snap.dpP1Deck) dpState.p1.deck = toArr(snap.dpP1Deck);
+        if(snap.dpP1Trash) dpState.p1.trash = toArr(snap.dpP1Trash);
+        if(snap.dpP1Hand) dpState.p1.hand = toArr(snap.dpP1Hand);
+        if(snap.dpP2Deck) dpState.p2.deck = toArr(snap.dpP2Deck);
+        if(snap.dpP2Trash) dpState.p2.trash = toArr(snap.dpP2Trash);
+        if(snap.dpP2Hand) dpState.p2.hand = toArr(snap.dpP2Hand);
+      } else if(MY_ROLE==='p2'){
+        // 通常: 相手(P1)のdpStateを受け取る
         if(snap.dpP1Deck) dpState.p1.deck = toArr(snap.dpP1Deck);
         if(snap.dpP1Trash) dpState.p1.trash = toArr(snap.dpP1Trash);
         if(snap.dpP1Hand) dpState.p1.hand = toArr(snap.dpP1Hand);
       } else {
-        // P1は相手(P2)のdpStateを受け取る
+        // 通常: 相手(P2)のdpStateを受け取る
         if(snap.dpP2Deck) dpState.p2.deck = toArr(snap.dpP2Deck);
         if(snap.dpP2Trash) dpState.p2.trash = toArr(snap.dpP2Trash);
         if(snap.dpP2Hand) dpState.p2.hand = toArr(snap.dpP2Hand);
@@ -1305,8 +1339,13 @@ function fbStartListen() {
         if (bdc) bdc.textContent = (dpState[p].deck||[]).length;
       });
       // ★ ターンが変わった時（ターン数またはbattleWhoが変化）に通知＋自動ドロー
-      var _turnChanged = (snap.battleTurn !== undefined && snap.battleTurn !== _prevTurn)
-                      || (snap.battleWho !== undefined && snap.battleWho !== _prevWho);
+      // ★ v3.36.4 FIX: 初回スナップショットでは battleTurn は復元値 (≠初期値1) になるので
+      //   必ず変化判定に引っ掛かり、リロード毎に余分な 1 ドロー / 誤トースト が発生していた。
+      //   初回は変化判定をスキップ (既存ターンの復元として扱う)。
+      var _turnChanged = !isFirst && (
+        (snap.battleTurn !== undefined && snap.battleTurn !== _prevTurn)
+        || (snap.battleWho !== undefined && snap.battleWho !== _prevWho)
+      );
       if(_turnChanged) {
         // 自分のターンかどうか判定
         var _isP1Turn=(battleWho==='先'&&p1First)||(battleWho==='後'&&!p1First);
@@ -1464,7 +1503,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.3</div>
+    <div class="logo-ver">BATTLE v3.36.4</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1519,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.3</div>
+    <div class="logo-ver">BATTLE v3.36.4</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1538,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.3</div>
+    <div class="logo-ver">BATTLE v3.36.4</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1561,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.3</div>
+    <div class="logo-ver">BATTLE v3.36.4</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1581,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.3</div>
+    <div class="logo-ver">BATTLE v3.36.4</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -3496,6 +3535,17 @@ function showBattleDemo(){
   // ★ バトル状態リセット
   battleTurn=1;
   battleWho='先';
+  // ★ v3.36.4: 再戦時に前バトルの残留状態を明示クリア
+  //   - lifeCardFace: 前回表向きになったライフが新バトルでも表のまま開始されていた
+  //   - lifeCardsData: 同上 (中身データ残留)
+  //   - dpState.{p1,p2}.{trash,hand}: 前バトルのトラッシュバッジが残留
+  //   (deck は下で showBattleDemo 内のフローで使われるためここではクリアしない)
+  lifeCardFace = {p1:[],p2:[]};
+  lifeCardsData = {p1:[],p2:[]};
+  if(dpState){
+    if(dpState.p1){ dpState.p1.trash=[]; dpState.p1.hand=[]; }
+    if(dpState.p2){ dpState.p2.trash=[]; dpState.p2.hand=[]; }
+  }
   // 先攻プレイヤーを判定（p1First=trueならP1先攻）
   var firstP=p1First?'p1':'p2';
   var donMax1=donLimit.p1?6:10;
@@ -6167,7 +6217,9 @@ function cleanupOnExit(){
     try{ if(_deckVisRef){ _deckVisRef.off('value'); _deckVisRef=null; } }catch(e){}
     try{ if(_trashVisRef){ _trashVisRef.off('value'); _trashVisRef=null; } }catch(e){}
     try{ if(_donLimitRef){ _donLimitRef.off('value'); _donLimitRef=null; } }catch(e){} // ★ v3.36.1
+    try{ if(_p2ReadyListenerRef){ _p2ReadyListenerRef.off('value'); _p2ReadyListenerRef=null; } }catch(e){} // ★ v3.36.4
     fbListening = false;
+    _fbFirstSnapshot = true; // ★ v3.36.4: 次回 fbStartListen の初回判定をリセット
     FB_SESSION_ID = null;
     // ★ v3.5.0: アロー状態とモードをリセット
     try{
@@ -8407,7 +8459,8 @@ function checkReconnect(){
   if(FB_ROOM && _urlP.get('role')){
     MY_ROLE=_urlP.get('role')||'p1';
     showScr('scrSelect');
-    setTimeout(initRoleUI, 300);
+    // ★ v3.36.4: URL直接 (?room=X&role=p1) も再接続扱い → 既存フラグ破壊しない
+    setTimeout(function(){ initRoleUI({fresh:false}); }, 300);
     return;
   }
   var saved=lobbyStorageLoad();
@@ -8433,7 +8486,8 @@ function checkReconnect(){
       }
       // ★ v3.3.0: ブラウザを閉じた時の onDisconnect を再登録
       try{ setupOnDisconnect(); }catch(e){}
-      initRoleUI();
+      // ★ v3.36.4: 再接続時はフラグ破壊しない (P2 接続済み等の状態を維持)
+      initRoleUI({fresh:false});
       showScr('scrBattle');
       // バトル画面を初期化してFirebase受信を再開
       setTimeout(function(){
@@ -8452,7 +8506,8 @@ function checkReconnect(){
         if(roomVal && (roomVal.handReady || roomVal.handGo || roomVal.battleGo)){
           // ★ マッチング済み・対戦前 → インポート画面に復元
           toast('📡 対戦準備画面に戻りました');
-          initRoleUI();
+          // ★ v3.36.4: 再接続時はフラグ破壊しない
+          initRoleUI({fresh:false});
           showScr('scrSelect');
         } else {
           // データなし → ログイン画面へ
