@@ -1464,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.36.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.36.0</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.36.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.36.0</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.35.1</div>
+    <div class="logo-ver">BATTLE v3.36.0</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -4199,7 +4199,9 @@ function _bdCalcAttackPower(anchor, opts){
   var tc = testCards.find(function(c){ return c && c.loc === loc; });
   if(!tc) return opts.breakdown ? {base:5000, donAdd:0, mod:0, total:5000} : 5000;
   var base = parseInt(tc.power) || 0;
-  var mod  = (parseInt(tc.modPower) || 0) * 1000;
+  // ★ v3.36.0 FIX: modPower は既に生値(±1000/±5000)で保存されているため *1000 を削除
+  //   従来は +1000 バフ中のカードでパワー +1,000,000 になっていた
+  var mod  = parseInt(tc.modPower) || 0;
   var donAdd = 0;
   if(includeDon){
     if(loc.indexOf('leader_') === 0){
@@ -4940,6 +4942,14 @@ function bdAcceptAttack(){
   _bdDefDraft.event = 0;
   _bdDefDraft.eventCost = 0;
   _bdDefDraft.blocker = false;
+  // ★ v3.36.0 FIX: counter/event/blocker だけリセットしていたため、
+  //   一度カウンター札を選択→choice画面に戻して「受入」を押すと
+  //   bdSubmitDefense が選択済み手札を自動トラッシュして消失していた。
+  //   leaderEffect も同様に responses に混入し結果表示が誤動作していた。
+  _bdDefDraft.usedCards = [];
+  _bdDefDraft.blockerCard = null;
+  _bdDefDraft.blockerKO = false;
+  _bdDefDraft.leaderEffect = {power:0, koProof:false, memoOnly:false, memo:''};
   // ★ v3.27.0: リーダー攻撃なら受入れと同時にライフ取得フローへ
   var to = pendingBattle.toAnchor;
   var isLeaderAttack = to && (to.zone === 'p1LeaderZone' || to.zone === 'p2LeaderZone');
@@ -4955,7 +4965,9 @@ function bdAcceptAttack(){
 function _bdAutoStartLifeTake(){
   if(!pendingBattle) return;
   var defRole = pendingBattle.atkRole === 'p1' ? 'p2' : 'p1';
-  if(MY_ROLE !== defRole) return;
+  // ★ v3.36.0 FIX: bdAcceptAttack が _bdSkipPushOnce=true で bdSubmitDefense の push を抑止しているため、
+  //   ここで早期returnすると受入応答が一切送信されない。push して状態同期してから return。
+  if(MY_ROLE !== defRole){ _bdPushNow(); return; }
   var faces = lifeCardFace[defRole] || [];
   if(!faces.length){
     pendingBattle.actionResult = {type:'lifeTake', failed:true, reason:'no_life'};
@@ -5435,7 +5447,12 @@ function bdHandleDefenderAction(b){
   if(alreadyHandled){
     // ★ v3.30.0: 既処理だがポップアップが閉じている → 受入れ→自動表示が失敗した可能性
     // → ポップアップを再表示してユーザーが操作できるようにする
-    if(b.pendingAction === 'lifeTake'){
+    // ★ v3.36.0 FIX: ライフ取得が完了済み (actionDone.lifeTaken=true) または結果確定済み (actionResult) なら
+    //   再表示してはならない。stale な pendingAction を持つコピーが届いた時に
+    //   トリガー確認が再オープン → ライフが二重消費されていた。
+    if(b.pendingAction === 'lifeTake'
+       && !(b.actionDone && b.actionDone.lifeTaken)
+       && !b.actionResult){
       var ov = _bdEl('triggerConfirmOverlay');
       if(ov && !ov.classList.contains('show')){
         var topData = (lifeCardsData[defRole]||[])[0] || {};
@@ -5548,7 +5565,10 @@ function bdCloseTriggerConfirm(){
 // ★ v3.26.3 / v3.28.0: トリガー確認の中断
 //   v3.28.0: 受入れ後の中断時は防御モーダルを再表示して防御を選び直せるようにする
 function bdAbortTriggerConfirm(){
-  if(!confirm('ライフ取得処理を中断しますか?\n(防御を選び直せます)')) return;
+  // ★ v3.36.0 FIX: 中断しても自動トラッシュ済みのカウンター札・レスト済みDON・
+  //   KO済みブロッカーは戻りません。再防御で実質二重消費になる旨を明示。
+  //   復元したい場合は中断後に Undo (↶) ボタンを使ってください。
+  if(!confirm('⚠️ ライフ取得処理を中断しますか?\n\n防御を選び直せますが、\n既に使用したカウンター札・DON・ブロッカーは\n自動では戻りません。\n\n戻すには中断後に Undo (↶) を押してください。')) return;
   if(pendingBattle){
     var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
     // ライフを表向きから裏面に戻す
@@ -5581,6 +5601,14 @@ function bdAbortTriggerConfirm(){
 function bdFinishLifeTake(usedTrigger){
   if(!pendingBattle) return;
   var defRole = pendingBattle.atkRole==='p1' ? 'p2' : 'p1';
+  // ★ v3.36.0 FIX: ライフ0ガード。faces.splice は空配列で no-op だが、
+  //   その後 testCards にダミー「LIFE」カードを手札へ生成して push していた。
+  //   再表示バグと複合してライフ0でも手札が無から増える挙動になっていた。
+  if(!(lifeCardFace[defRole]||[]).length){
+    bdCloseTriggerConfirm();
+    toast('⚠️ ライフがありません');
+    return;
+  }
   var cardData = _bdTriggerCardData || {};
   saveState();
   // ライフ→手札 にカード移動
@@ -5671,8 +5699,8 @@ function bdReshowCurrent(){
       _bdEl('bdResMine').innerHTML = _bdSummaryText(pendingBattle);
       var pwEl = _bdEl('bdResBarPower');
       pwEl.textContent = _bdPowerBadge(pendingBattle);
-      // ★ v3.18.0: 結果バッジ用のクラスをリセット
-      ['success','counter','event','block'].forEach(function(c){ pwEl.classList.remove('result-'+c); });
+      // ★ v3.18.0 / v3.36.0: 結果バッジ用のクラスをリセット (L5218と統一して 'leader' を追加)
+      ['success','counter','event','block','leader'].forEach(function(c){ pwEl.classList.remove('result-'+c); });
       // ★ v3.15.0: 「P1/P2 回答待ち...」とロール明示
       var oppRole = pendingBattle.atkRole==='p1' ? 'P2' : 'P1';
       _bdEl('bdResBarSummary').textContent = '📡 '+oppRole+' 回答待ち...';
