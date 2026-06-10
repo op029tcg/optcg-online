@@ -1464,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.0</div>
+    <div class="logo-ver">BATTLE v3.36.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.0</div>
+    <div class="logo-ver">BATTLE v3.36.1</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.0</div>
+    <div class="logo-ver">BATTLE v3.36.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.0</div>
+    <div class="logo-ver">BATTLE v3.36.1</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.0</div>
+    <div class="logo-ver">BATTLE v3.36.1</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -2288,7 +2288,12 @@ var deckVisMode={p1:'hidden',p2:'hidden'};
 var handVisMode={p1:'own',p2:'own'};
 
 // ══════ 設定（6ドン制限） ══════
+// ★ v3.36.1: 両プレイヤーで共有する設定として Firebase 同期。
+//   従来はローカル変数のみで、相手と donLimit が食い違ったまま
+//   showBattleDemo を実行 → donState 初期値が不一致 → 先に push した側が上書き
+//   していた。さらにバトル中のトグルが ds.max 固定で反映されない問題もあった。
 var donLimit={p1:false,p2:false}; // true=6ドン制限ON
+var _donLimitRef = null; // ★ v3.36.1: 解除用 ref
 
 // ══════ 手札公開モード切替 ══════
 // 自分の手札公開モードを変更してFirebaseに同期する
@@ -2539,9 +2544,49 @@ function settingsClose(){
 }
 function toggleDon6(player){
   donLimit[player]=!donLimit[player];
+  _applyDonLimit(player); // ★ v3.36.1: UI更新 + ライブバトル反映 + Firebase 同期
+}
+// ★ v3.36.1: トグルUI更新 + 進行中バトルの donState への即時反映 + Firebase書き込みを共通化
+//   (リモートから受信したトグルもこれを通して適用するため、push は引数 noPush で抑止)
+function _applyDonLimit(player, noPush){
+  // 1) トグルUI同期
   var id='toggleDon6'+(player==='p1'?'P1':'P2');
   var t=document.getElementById(id);
   if(t)t.setAttribute('data-on',donLimit[player]?'true':'false');
+  // 2) 進行中バトルがあれば donState を即時反映
+  //    新 max = 6 or 10、deck = max - (active+rest+leader+char) (負ならクランプ)
+  //    既に使っているDONはそのまま残し、新たに引ける量だけ変える
+  if(typeof donState!=='undefined' && donState[player]){
+    var ds=donState[player];
+    var newMax=donLimit[player]?6:10;
+    var used=(ds.active||0)+(ds.rest||0)+(ds.leader||0)+(ds.char||[]).reduce(function(s,v){return s+(v||0);},0);
+    ds.max=newMax;
+    ds.deck=Math.max(0, newMax-used);
+    try{ renderDonState(player); }catch(e){}
+  }
+  // 3) Firebase 同期 (受信時は noPush=true で抑止)
+  if(!noPush){
+    try{
+      if(typeof fbDB!=='undefined'&&FB_ROOM){
+        fbDB.ref('rooms/'+FB_ROOM+'/donLimit/'+player).set(!!donLimit[player]);
+      }
+    }catch(e){}
+  }
+}
+// ★ v3.36.1: 相手側の donLimit 変更を受信して適用するリスナー
+function fbDonLimitListen(){
+  if(typeof fbDB==='undefined'||!FB_ROOM) return;
+  if(_donLimitRef){ try{ _donLimitRef.off('value'); }catch(e){} }
+  _donLimitRef = fbDB.ref('rooms/'+FB_ROOM+'/donLimit');
+  _donLimitRef.on('value',function(snap){
+    var val=snap.val()||{};
+    ['p1','p2'].forEach(function(p){
+      if(typeof val[p]==='boolean' && donLimit[p]!==val[p]){
+        donLimit[p]=val[p];
+        _applyDonLimit(p, true); // noPush=true (受信した値はそのまま書き戻さない)
+      }
+    });
+  });
 }
 
 function resetImport(){
@@ -3007,6 +3052,7 @@ function startBattle(){
   setTimeout(fbHandVisListen, 1000);
   setTimeout(fbDeckVisListen, 1000);
   setTimeout(fbTrashVisListen, 1000);
+  setTimeout(fbDonLimitListen, 1000); // ★ v3.36.1
 }
 function showScr(id){
   ['scrLogin','scrMode','scrHost','scrGuest','scrSelect','scrHand','scrBattle'].forEach(function(sid){
@@ -6044,7 +6090,10 @@ function nextTurn(){
   // ═══ 4. ドンデッキから2ドンをアクティブ追加（先攻1ターン目のみ1ドン） ═══
   var donAdd=(battleWho==='先'&&battleTurn===1)?1:2;
   // 6ドン制限：合計（active+rest+char付与分）が上限を超えないよう制限
-  var donMaxCap=ds.max||(donLimit[cp]?6:10);
+  // ★ v3.36.1: ds.max は showBattleDemo / _applyDonLimit で常に 6 or 10 に維持されるので
+  //   donLimit へのフォールバック (旧死にコード `ds.max || ...`) は不要。
+  //   未初期化時のみ 10 をデフォルトに。
+  var donMaxCap=(ds.max!=null)?ds.max:10;
   var donUsed=ds.active+ds.rest+ds.char.reduce(function(s,v){return s+v;},0)+ds.leader;
   var donAddCapped=Math.min(donAdd, donMaxCap-donUsed, ds.deck);
   var actualAdd=Math.max(0,donAddCapped);
@@ -6117,6 +6166,7 @@ function cleanupOnExit(){
     try{ if(_handVisRef){ _handVisRef.off('value'); _handVisRef=null; } }catch(e){}
     try{ if(_deckVisRef){ _deckVisRef.off('value'); _deckVisRef=null; } }catch(e){}
     try{ if(_trashVisRef){ _trashVisRef.off('value'); _trashVisRef=null; } }catch(e){}
+    try{ if(_donLimitRef){ _donLimitRef.off('value'); _donLimitRef=null; } }catch(e){} // ★ v3.36.1
     fbListening = false;
     FB_SESSION_ID = null;
     // ★ v3.5.0: アロー状態とモードをリセット
@@ -8285,6 +8335,7 @@ function checkReconnect(){
       setTimeout(fbHandVisListen, 1000);
       setTimeout(fbDeckVisListen, 1000);
       setTimeout(fbTrashVisListen, 1000);
+      setTimeout(fbDonLimitListen, 1000); // ★ v3.36.1
     } else {
       // battleStateなし → handReady/handGo/battleGoを確認
       fbDB.ref('rooms/'+saved.roomId).once('value', function(roomSnap){
