@@ -1216,6 +1216,12 @@ function fbPushStateDebounced() {
 // Firebaseからゲーム状態を受信して画面を更新する
 var fbListening = false;
 var _fbFirstSnapshot = true; // ★ v3.36.4: 再接続初回スナップショット判定 (fbStartListen で都度リセット)
+// ★ v3.36.8 FIX: 「初回フル復元」を本当のリロード再接続に限定するフラグ。
+//   checkReconnect の battleState 復元パスだけが true にする。
+//   v3.36.4 では新規バトル開始でも初回スナップショットで自分の手札を上書きしていたため、
+//   P1 が先に push した「P2 手札のダミー5枚 (P1 は P2 のデッキを知らないため)」が
+//   P2 の本物の手札を置換してしまうリグレッションが発生していた。
+var _fbRestoreOwnZones = false;
 // セッションID：バトル開始時に生成、古いデータを無視するため
 var FB_SESSION_ID = null;
 
@@ -1325,8 +1331,11 @@ function fbStartListen() {
     // ★ v3.36.4: 初回フラグを「処理開始時に即降ろす」(例外時のロック防止)
     var isFirst = _fbFirstSnapshot;
     _fbFirstSnapshot = false;
-    // 自分が送信したデータは無視 (※ 初回は復元のためスキップ)
-    if (!isFirst && snap.updatedBy === MY_ROLE) return;
+    // ★ v3.36.8: 自分側ゾーンの復元はリロード再接続時のみ (新規バトルでは絶対にしない)
+    var restoreOwn = isFirst && _fbRestoreOwnZones;
+    if (isFirst) _fbRestoreOwnZones = false;
+    // 自分が送信したデータは無視 (※ リロード復元の初回のみスキップ)
+    if (!restoreOwn && snap.updatedBy === MY_ROLE) return;
     // ★ battleTurnが含まれていないデータは無視（インポート等のFirebase更新を除外）
     if (snap.battleTurn === undefined || snap.battleTurn === null) return;
     // ★ セッションIDチェック：一致する場合のみ処理（古いキャッシュを除外）
@@ -1338,10 +1347,9 @@ function fbStartListen() {
       if(snap.testCards){
         var rawCards = snap.testCards;
         if(!Array.isArray(rawCards)) rawCards = Object.values(rawCards);
-        if(isFirst){
-          // ★ v3.36.4: 初回は自分側も含めて完全復元
-          //   従来は initCardSystem が空 importData/p1Hand からダミー5枚を生成し、
-          //   受信時の「自分の手札保護」ルールでダミーが恒久置換していた。
+        if(restoreOwn){
+          // ★ v3.36.4/v3.36.8: リロード再接続の初回のみ自分側も含めて完全復元
+          //   (新規バトルでは相手が生成した自分手札のダミーを受け入れてはならない)
           testCards = rawCards.filter(function(c){ return c; });
         } else {
           // 通常時: 自分の手札・Freeゾーンは自分で管理（相手データで上書きしない）
@@ -1355,8 +1363,8 @@ function fbStartListen() {
           myFreeCards.forEach(function(c){ testCards.push(c); });
         }
       }
-      if(isFirst){
-        // ★ v3.36.4: 初回は自分側 dpState も復元
+      if(restoreOwn){
+        // ★ v3.36.4/v3.36.8: リロード再接続の初回のみ自分側 dpState も復元
         if(snap.dpP1Deck) dpState.p1.deck = toArr(snap.dpP1Deck);
         if(snap.dpP1Trash) dpState.p1.trash = toArr(snap.dpP1Trash);
         if(snap.dpP1Hand) dpState.p1.hand = toArr(snap.dpP1Hand);
@@ -1577,7 +1585,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.6</div>
+    <div class="logo-ver">BATTLE v3.36.8</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1593,7 +1601,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.6</div>
+    <div class="logo-ver">BATTLE v3.36.8</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1612,7 +1620,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.6</div>
+    <div class="logo-ver">BATTLE v3.36.8</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1635,7 +1643,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.6</div>
+    <div class="logo-ver">BATTLE v3.36.8</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1655,7 +1663,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.6</div>
+    <div class="logo-ver">BATTLE v3.36.8</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -6392,6 +6400,7 @@ function cleanupOnExit(){
     try{ if(_p2ReadyListenerRef){ _p2ReadyListenerRef.off('value'); _p2ReadyListenerRef=null; } }catch(e){} // ★ v3.36.4
     fbListening = false;
     _fbFirstSnapshot = true; // ★ v3.36.4: 次回 fbStartListen の初回判定をリセット
+    _fbRestoreOwnZones = false; // ★ v3.36.8: 退出後の次バトルは新規扱い
     FB_SESSION_ID = null;
     // ★ v3.5.0: アロー状態とモードをリセット
     try{
@@ -8680,6 +8689,8 @@ function checkReconnect(){
     if(snap.val()){
       // ★ 対戦データあり → バトル画面に再接続
       toast('📡 対戦に再接続しました');
+      // ★ v3.36.8: リロード再接続なので初回スナップショットの「自分側ゾーン復元」を許可
+      _fbRestoreOwnZones = true;
       // ★ v3.3.0: FB_SESSION_ID をlocalStorageから復元（無ければスナップショットから）
       var savedSid = sessionIdStorageLoad();
       if(savedSid){
