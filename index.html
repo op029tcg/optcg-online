@@ -293,11 +293,12 @@ input,textarea{touch-action:auto;}
 #ownerLoginOverlay.show{display:flex;}
 #ownerLoginPanel{width:100%;max-width:320px;background:#0a0e18;border:1px solid rgba(34,211,238,.4);border-radius:12px;padding:28px 22px;color:#fff;box-shadow:0 12px 40px rgba(34,211,238,.15);}
 #ownerLoginPanel .olp-title{font-size:16px;letter-spacing:3px;text-align:center;color:#22d3ee;margin-bottom:18px;}
-#ownerLoginInput{width:100%;padding:12px;font-size:16px;background:#000;border:1px solid #333;border-radius:8px;color:#fff;text-align:center;letter-spacing:6px;margin-bottom:14px;box-sizing:border-box;-webkit-text-security:disc;}
+#ownerLoginInput{width:100%;padding:12px;font-size:16px;background:#000;border:1px solid #333;border-radius:8px;color:#fff;text-align:center;letter-spacing:6px;margin-bottom:14px;box-sizing:border-box;}
 #ownerLoginSubmit{width:100%;padding:12px;background:linear-gradient(135deg,#0e7490,#22d3ee);border:none;border-radius:8px;color:#000;font-weight:900;font-size:14px;letter-spacing:3px;cursor:pointer;font-family:inherit;}
 #ownerLoginSubmit:active{transform:scale(.97);}
 #ownerLoginErr{margin-top:10px;text-align:center;color:#ef4444;font-size:11px;min-height:14px;letter-spacing:1px;}
-#ownerBadge{display:none;position:fixed;top:max(12px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:2147483646;padding:5px 10px;background:rgba(16,32,28,.95);border:1px solid rgba(74,222,128,.5);border-radius:14px;color:#4ade80;font-size:10px;font-weight:900;letter-spacing:2px;pointer-events:none;font-family:'DM Mono',monospace;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+/* ★ v3.36.5: バトル画面のリセットFAB (右上) と被るため左上配置に変更 */
+#ownerBadge{display:none;position:fixed;top:max(12px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:2147483646;padding:5px 10px;background:rgba(16,32,28,.95);border:1px solid rgba(74,222,128,.5);border-radius:14px;color:#4ade80;font-size:10px;font-weight:900;letter-spacing:2px;pointer-events:none;font-family:'DM Mono',monospace;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
 #ownerBadge.show{display:inline-block;}
 
 /* EMPTY STATE */
@@ -969,8 +970,56 @@ let IS_OWNER = false;
 let _GATE_PASSED = false; // true なら通常進行
 let _gateHeartbeatTimer = null;
 async function _gateSha256(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  // ★ v3.36.5: crypto.subtle は secure context (HTTPS/localhost) 必須。
+  //   HTTP 配信 (LAN テスト等) では undefined で例外 → 常に「❌ エラー」になり
+  //   オーナーログイン不能だったので、純 JS の SHA-256 にフォールバック。
+  if(typeof crypto!=='undefined' && crypto.subtle && crypto.subtle.digest){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  return _gateSha256JS(str);
+}
+// 純JS実装 (RFC 6234 準拠) — secure context で無い時のフォールバック
+function _gateSha256JS(str){
+  function rotr(n,x){return (x>>>n)|(x<<(32-n));}
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+         0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+         0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+         0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+         0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+         0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+         0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+         0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var bytes=new TextEncoder().encode(str);
+  var len=bytes.length, bitLen=len*8;
+  var withPad=new Uint8Array(Math.ceil((len+9)/64)*64);
+  withPad.set(bytes); withPad[len]=0x80;
+  var hi=Math.floor(bitLen/0x100000000), lo=bitLen>>>0;
+  var dv=new DataView(withPad.buffer);
+  dv.setUint32(withPad.length-8, hi); dv.setUint32(withPad.length-4, lo);
+  var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  for(var ofs=0; ofs<withPad.length; ofs+=64){
+    var W=new Array(64);
+    for(var i=0;i<16;i++) W[i]=dv.getUint32(ofs+i*4);
+    for(var i=16;i<64;i++){
+      var s0=rotr(7,W[i-15])^rotr(18,W[i-15])^(W[i-15]>>>3);
+      var s1=rotr(17,W[i-2])^rotr(19,W[i-2])^(W[i-2]>>>10);
+      W[i]=(W[i-16]+s0+W[i-7]+s1)|0;
+    }
+    var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(var i=0;i<64;i++){
+      var S1=rotr(6,e)^rotr(11,e)^rotr(25,e);
+      var ch=(e&f)^(~e&g);
+      var t1=(h+S1+ch+K[i]+W[i])|0;
+      var S0=rotr(2,a)^rotr(13,a)^rotr(22,a);
+      var mj=(a&b)^(a&c)^(b&c);
+      var t2=(S0+mj)|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0; H[1]=(H[1]+b)|0; H[2]=(H[2]+c)|0; H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0; H[5]=(H[5]+f)|0; H[6]=(H[6]+g)|0; H[7]=(H[7]+h)|0;
+  }
+  return H.map(function(v){return ('00000000'+(v>>>0).toString(16)).slice(-8);}).join('');
 }
 function _gateGetEl(id){ return document.getElementById(id); }
 function _gateShow404(){
@@ -980,10 +1029,19 @@ function _gateShow404(){
 }
 function _gateStartHeartbeat(){
   if(_gateHeartbeatTimer) return;
-  var tick = function(){ fbDB.ref('service/heartbeat').set(Date.now()).catch(function(){}); };
+  var hbRef = fbDB.ref('service/heartbeat');
+  // ★ v3.36.5: ServerValue.TIMESTAMP に変更。従来は Date.now() でクライアント時計に
+  //   依存していたため、オーナーとゲストで 90秒超の時計ズレがあると誤ブロック/誤通過
+  //   していた。サーバー時刻基準なら端末時計に左右されない。
+  var SV = firebase.database.ServerValue;
+  var tick = function(){ hbRef.set(SV.TIMESTAMP).catch(function(){}); };
   tick();
   _gateHeartbeatTimer = setInterval(tick, _GATE_HEARTBEAT_INTERVAL_MS);
-  // タブ非表示時はハートビート停止 → 復帰で再開
+  // ★ v3.36.5: タブクローズ・クラッシュ・ネットワーク断で確実に heartbeat=0 にする。
+  //   従来は beforeunload で書こうとしていたが、非同期書き込みがフラッシュされず
+  //   届かないことが多かった。onDisconnect はサーバー側で自動実行されるため確実。
+  hbRef.onDisconnect().set(0);
+  // タブ非表示時はハートビート送信を一時停止 → 復帰で再開
   document.addEventListener('visibilitychange', function(){
     if(!IS_OWNER) return;
     if(document.visibilityState === 'hidden'){
@@ -993,17 +1051,13 @@ function _gateStartHeartbeat(){
       _gateHeartbeatTimer = setInterval(tick, _GATE_HEARTBEAT_INTERVAL_MS);
     }
   });
-  // タブクローズ時は heartbeat=0 で即停止のヒント
-  window.addEventListener('beforeunload', function(){
-    if(IS_OWNER){ try{ fbDB.ref('service/heartbeat').set(0); }catch(e){} }
-  });
 }
 function _gateBecomeOwner(){
   IS_OWNER = true;
-  _GATE_PASSED = true;
   var ov = _gateGetEl('ownerLoginOverlay'); if(ov) ov.classList.remove('show');
   var badge = _gateGetEl('ownerBadge'); if(badge) badge.classList.add('show');
   _gateStartHeartbeat();
+  _resolveGate(true); // ★ v3.36.5: ゲート確定 → 遅延 callback (checkReconnect 等) を発火
 }
 function _gateBindOwnerLogin(){
   var ov = _gateGetEl('ownerLoginOverlay');
@@ -1034,18 +1088,38 @@ function _gateBindOwnerLogin(){
 }
 async function _gateCheckGuest(){
   try {
+    // ★ v3.36.5: サーバー時刻基準で fresh 判定 (端末時計ズレで誤判定する問題対策)
+    var offsetSnap = await fbDB.ref('.info/serverTimeOffset').once('value');
+    var offset = (offsetSnap && offsetSnap.val()) || 0;
     var snap = await fbDB.ref('service/heartbeat').once('value');
     var hb = parseInt(snap.val()) || 0;
-    var fresh = (Date.now() - hb) < _GATE_HEARTBEAT_TIMEOUT_MS;
+    var serverNow = Date.now() + offset;
+    var fresh = (serverNow - hb) < _GATE_HEARTBEAT_TIMEOUT_MS;
     if(fresh){
-      _GATE_PASSED = true;
+      _resolveGate(true);
     } else {
       _gateShow404();
+      _resolveGate(false);
     }
   } catch(e){
     // Firebase 接続失敗 = 安全側に倒して 404
     _gateShow404();
+    _resolveGate(false);
   }
+}
+// ★ v3.36.5: ゲート確定パターン。checkReconnect 等を「ゲート確定後」まで遅延実行する
+//   ことで _GATE_PASSED を実際に強制する (従来は変数代入のみで参照されていなかった)。
+var _gateDetermined = false;
+var _gateDeterminedCallbacks = [];
+function _resolveGate(passed){
+  _GATE_PASSED = !!passed;
+  _gateDetermined = true;
+  var cbs = _gateDeterminedCallbacks; _gateDeterminedCallbacks = [];
+  cbs.forEach(function(cb){ try{ cb(); }catch(e){} });
+}
+function _onGateReady(cb){
+  if(_gateDetermined) cb();
+  else _gateDeterminedCallbacks.push(cb);
 }
 // エントリーポイント — DOM 構築後に実行
 document.addEventListener('DOMContentLoaded', function(){
@@ -1389,7 +1463,7 @@ function fbStartListen() {
 <div id="ownerLoginOverlay">
   <div id="ownerLoginPanel">
     <div class="olp-title">🔐 OWNER LOGIN</div>
-    <input type="text" id="ownerLoginInput" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="12">
+    <input type="password" id="ownerLoginInput" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="12">
     <button id="ownerLoginSubmit" type="button">UNLOCK</button>
     <div id="ownerLoginErr"></div>
   </div>
@@ -1503,7 +1577,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.4</div>
+    <div class="logo-ver">BATTLE v3.36.5</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1519,7 +1593,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.4</div>
+    <div class="logo-ver">BATTLE v3.36.5</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1538,7 +1612,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.4</div>
+    <div class="logo-ver">BATTLE v3.36.5</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1561,7 +1635,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.4</div>
+    <div class="logo-ver">BATTLE v3.36.5</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1581,7 +1655,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.4</div>
+    <div class="logo-ver">BATTLE v3.36.5</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -2262,11 +2336,19 @@ function handleImportP2(e){
       document.getElementById('previewWrap').style.display='';
       updatePreviews();updateStartBtn();
       toast('P2: '+d.decks[0].name+' を読み込みました');
-      if(MY_ROLE==='p2'&&typeof fbDB!=='undefined'){
+    }catch(err){toast('JSON読み込みエラー');return;}
+    // ★ v3.36.5 FIX: Firebase 書き込みを別 try に分離。従来は同じ catch で
+    //   「JSON読み込みエラー」と誤報告され、デッキは読めているのに p2Ready 未送信
+    //   という失敗が隠れていた。
+    if(MY_ROLE==='p2'&&typeof fbDB!=='undefined'){
+      try{
         fbDB.ref('rooms/'+FB_ROOM+'/p2DeckInfo').set({id:p2Deck.id,name:p2Deck.name,leaderId:p2Deck.leader||null,colors:p2Deck.colors||[]});
         fbDB.ref('rooms/'+FB_ROOM+'/p2Ready').set(true);
+      }catch(fbErr){
+        toast('⚠️ Firebase 送信失敗: '+(fbErr.message||fbErr));
+        console.warn('handleImportP2 fb error:', fbErr);
       }
-    }catch(err){toast('JSON読み込みエラー');}
+    }
   };
   r.readAsText(f);e.target.value='';
 }
@@ -3487,9 +3569,22 @@ function undoState(){
   if(!undoHistory.length){toast('戻せる操作がありません');return;}
   var snap=undoHistory.pop();
   testCards=snap.testCards;
-  dpState.p1.deck=snap.dpP1Deck;dpState.p1.trash=snap.dpP1Trash;dpState.p1.hand=snap.dpP1Hand;
-  dpState.p2.deck=snap.dpP2Deck;dpState.p2.trash=snap.dpP2Trash;dpState.p2.hand=snap.dpP2Hand;
-  donState.p1=snap.donP1;donState.p2=snap.donP2;
+  // ★ v3.36.5 FIX: 自分側 dpState のみ巻き戻す。fbPushState は自分側のみ送るため
+  //   相手画面には相手側 dpState の巻き戻しが反映されず、相手の次回 push で
+  //   再上書き → 両画面で枚数不一致が発生していた。
+  //   undo は自分の操作の取消なので、自分側のみ巻き戻すのが正しい挙動。
+  var myR=MY_ROLE||'p1';
+  if(myR==='p2'){
+    dpState.p2.deck=snap.dpP2Deck;dpState.p2.trash=snap.dpP2Trash;dpState.p2.hand=snap.dpP2Hand;
+  } else {
+    dpState.p1.deck=snap.dpP1Deck;dpState.p1.trash=snap.dpP1Trash;dpState.p1.hand=snap.dpP1Hand;
+  }
+  // donState は自分側 (相手側はそのまま保持)
+  if(myR==='p2'){
+    donState.p2=snap.donP2;
+  } else {
+    donState.p1=snap.donP1;
+  }
   lifeCardFace.p1=snap.lifeFaceP1;lifeCardFace.p2=snap.lifeFaceP2;
   lifeCardsData.p1=snap.lifeDataP1;lifeCardsData.p2=snap.lifeDataP2;
   ldrRested.p1=snap.ldrRestedP1;ldrRested.p2=snap.ldrRestedP2;
@@ -3635,7 +3730,11 @@ function renderLifeMarks(elId,count){
 }
 // ★ 自分のターンか判定する関数
 function isMyTurn(){
-  // ローカル（roleパラメータなし）は常にtrue
+  // ★ v3.36.5 FIX: MY_ROLE は L1113 で `|| 'p1'` の既定があるため null にならず、
+  //   role パラメータ無しのローカル運用で従来は常に「P1 のみ」と扱われて P2 側操作が
+  //   ブロックされていた。FB_ROOM が無い = オンライン未接続 = ローカルなので常に true。
+  if(!FB_ROOM) return true;
+  // ローカル（roleパラメータなし）は常にtrue (旧コード残し)
   if(MY_ROLE!=='p1'&&MY_ROLE!=='p2') return true;
   // 先攻プレイヤーを判定：p1First=trueならP1が先攻
   // battleWho='先' → 先攻プレイヤーのターン
@@ -7883,9 +7982,16 @@ function setupLeaderTap(player){
       if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
     }
   },{passive:false});
+  // ★ v3.36.5 FIX: PC (マウス) でリーダーをクリックした時のガード・同期。
+  //   touchend 側にはあるが click 側に isMyTurn / fbPushStateDebounced が無く、
+  //   PC では相手ターン中も切替可能・相手画面に反映されない不具合があった。
+  //   touchend は preventDefault するためモバイルで二重発火しない。
   lz.addEventListener('click',()=>{
-    if(donDrag)return;
+    if(donDrag||cardDragState)return;
+    var myP6=MY_ROLE==='p2'?'p2':'p1';
+    if(!isMyTurn()&&player!==myP6){toast('⛔ 相手のターンです');return;}
     saveState();ldrRested[player]=!ldrRested[player];lz.classList.toggle('ldr-rested',ldrRested[player]);
+    if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
   });
 }
 // ★ v3.36.3: touchcancel (着信・通知・OS介入) でドラッグ中断時のクリーンアップ。
@@ -8332,6 +8438,12 @@ function doHostCreate(){
       document.getElementById('hostConfirmBtn').style.display='flex';
       // 部屋をロック（3人目入室防止）
       fbDB.ref('lobby/'+roomId+'/status').set('locked');
+    } else {
+      // ★ v3.36.5: ゲストが入室後にキャンセル/切断した場合は待機UIへ戻す
+      //   (ゲスト側 doGuestCancel が guestId=null/status='waiting' を set した時)
+      document.getElementById('hostStatusDot').className='room-status-dot dot-wait';
+      document.getElementById('hostStatusTxt').textContent='ゲストの入室待ち...';
+      document.getElementById('hostConfirmBtn').style.display='none';
     }
   };
   fbDB.ref('lobby/'+roomId).on('value',_hostRoomListener);
@@ -8445,6 +8557,13 @@ function doGuestJoin(roomId, hostId){
 function doGuestCancel(){
   // ★ v3.3.0: _guestRoomListener は roomRef2(=_guestRoomRef) に登録されているため、正しい ref で解除
   if(_guestRoomListener && _guestRoomRef){ _guestRoomRef.off('value',_guestRoomListener); }
+  // ★ v3.36.5 FIX: 部屋を waiting 状態に戻し、guestId をクリアする
+  //   従来は guestId と status='locked' をそのまま残していたため、ホスト側は
+  //   「入室しました!」のまま確認ボタンが有効化されたままで、誰もいない部屋で
+  //   永久待機する状態に陥っていた。部屋一覧にも再掲されなかった。
+  if(_guestRoomRef){
+    try{ _guestRoomRef.update({guestId:null, status:'waiting'}); }catch(e){}
+  }
   _guestRoomListener=null; _guestRoomRef=null;
   if(_lobbyListListener){ lobbyRef.off('value',_lobbyListListener); _lobbyListListener=null; }
   document.getElementById('guestStatus').style.display='none';
@@ -8540,7 +8659,10 @@ document.addEventListener('DOMContentLoaded',function(){
   document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
 
   // ★ 初期画面：再接続チェック（scrLoginまたは復元）
-  checkReconnect();
+  // ★ v3.36.5: ゲートが確定してから実行 (ゲート 404 時は何もしない、ゲート通過時のみ再接続処理)
+  _onGateReady(function(){
+    if(_GATE_PASSED) checkReconnect();
+  });
 
   // ── ログイン画面
   var _loginT=false;
