@@ -1464,7 +1464,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.2</div>
+    <div class="logo-ver">BATTLE v3.36.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1480,7 +1480,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.2</div>
+    <div class="logo-ver">BATTLE v3.36.3</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1499,7 +1499,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.2</div>
+    <div class="logo-ver">BATTLE v3.36.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1522,7 +1522,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.2</div>
+    <div class="logo-ver">BATTLE v3.36.3</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1542,7 +1542,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.2</div>
+    <div class="logo-ver">BATTLE v3.36.3</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -6669,7 +6669,14 @@ function initCardSystem(){
     if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
   }
 
+  // ★ v3.36.3: 再戦/再接続のたびに initCardSystem→dpInitZones が再実行され
+  //   閉じるボタン・アクションバー・各DeckZoneのリスナーが重複登録されていた。
+  //   1タップで旧+新の2回実行 → saveState 二重 → Undo 履歴汚染 + 旧クロージャの
+  //   選択状態 (dpSelectedCids/dpCurrentPlayer) で前ゲームのカードを誤トラッシュし得る。
+  var _dpInitDone=false;
   function dpInitZones(){
+    if(_dpInitDone) return;
+    _dpInitDone=true;
     ['p1','p2'].forEach(function(p){
       if(dpState[p].deck.length===0){
         // デッキが空の場合は空のままにする（DP_CARDSのエネルデータを使わない）
@@ -6868,11 +6875,15 @@ function lpBuildList(){
       var dn=document.createElement('div');dn.className='dn';dn.textContent=i+1;th.appendChild(dn);
     }
     // 長押しで拡大表示
+    // ★ v3.36.3 FIX: touchend で zt をクリアしていなかったため、タップだけでも 600ms 後に
+    //   拡大表示が勝手に開いていた。touchend + touchcancel でクリアして抑止。
     (function(imgSrc){
       if(!imgSrc)return;
       var zt=null;
       th.addEventListener('touchstart',function(){zt=setTimeout(function(){cardZoomOpen(imgSrc);},600);},{passive:true});
+      th.addEventListener('touchend',function(){clearTimeout(zt);},{passive:true});
       th.addEventListener('touchmove',function(){clearTimeout(zt);},{passive:true});
+      th.addEventListener('touchcancel',function(){clearTimeout(zt);},{passive:true});
     })(lImg||'');
     // タップ表裏切替
     var tt=false;
@@ -6956,7 +6967,12 @@ function lpDoHand(){
   // ★ リアルタイム同期
   if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
 }
+// ★ v3.36.3: lpInitZones / tpInitZones も多重登録ガード
+var _lpInitDone=false;
+var _tpInitDone=false;
 function lpInitZones(){
+  if(_lpInitDone) return;
+  _lpInitDone=true;
   // ライフスタックのタップ/D&Dは setupLifeDrag が一元管理
   // ここでは閉じるボタン・アクションバーのみ登録
   // 閉じるボタン・オーバーレイ
@@ -7126,6 +7142,8 @@ function tpUpdateTrashBadge(player,cnt){
   badge.textContent=cnt;
 }
 function tpInitZones(){
+  if(_tpInitDone) return; // ★ v3.36.3
+  _tpInitDone=true;
   // TRASHゾーンをタップでパネルを開く
   ['p1','p2'].forEach(function(p){
     var tz=document.querySelector('[data-zone="trash"][data-player="'+p+'"]');
@@ -7471,6 +7489,12 @@ function makeHCard(c){
     if(zoomed){zoomed=false;pT=0;return;}
     pT=0;
   },{passive:false});
+  // ★ v3.36.3: touchcancel でドラッグ・ズームタイマーを必ずクリーンアップ
+  div.addEventListener('touchcancel',function(){
+    clearTimeout(zoomTimer);
+    if(dragging){_abortCardDrag();dragging=false;}
+    pT=0;zoomed=false;
+  },{passive:true});
   div.addEventListener('mousedown',e=>startCDrag(e,c.id,srcPlayer));
   return div;
 }
@@ -7503,6 +7527,10 @@ function setupSlotEvents(slot,c){
     }
   },{passive:false});
   slot.addEventListener('touchend',e=>{
+    // ★ v3.36.3 FIX: タップ毎に合成マウスイベントが発火して startCDrag → endCDrag が走り、
+    //   moveCard の saveState() (同一loc no-op の手前) で Undo が 2 個積まれていた。
+    //   touchend で preventDefault することで合成イベントを抑止する。
+    e.preventDefault();
     clearTimeout(holdTimer);
     // DONバッジからのタッチは無視
     if(e.target.closest&&e.target.closest('.don-badge')){pT=0;return;}
@@ -7516,7 +7544,13 @@ function setupSlotEvents(slot,c){
       if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
     }
     pT=0;
-  });
+  },{passive:false});
+  // ★ v3.36.3: touchcancel でドラッグ・ホールドタイマーをクリーンアップ
+  slot.addEventListener('touchcancel',function(){
+    clearTimeout(holdTimer);
+    if(dragging){_abortCardDrag();dragging=false;}
+    pT=0;modalOpened=false;
+  },{passive:true});
   slot.addEventListener('mousedown',e=>startCDrag(e,c.id,srcPlayer));
 }
 // ══════════════════════════════════════════════════════
@@ -7612,6 +7646,21 @@ function setupLifeDrag(player){
     }
     moved=false;pX=0;pY=0;
   },{passive:false});
+  // ★ v3.36.3: touchcancel でドラッグ・ホールド系タイマーを全てクリーンアップ
+  //   またライフ仮カードがゾンビ化していたケース (ターンブロック等) も併せて削除
+  ls.addEventListener('touchcancel',function(){
+    clearTimeout(holdTimer);clearTimeout(panelTimer);
+    ls.style.outline='';ls.style.boxShadow='';
+    if(dragging){
+      // life_drag_ 仮カードを削除 (テスト盤に残ってしまうのを防ぐ)
+      try{
+        var stale=testCards.findIndex(function(x){return x && typeof x.id==='string' && x.id.indexOf('life_drag_')===0;});
+        if(stale>=0) testCards.splice(stale,1);
+      }catch(e){}
+      _abortCardDrag();
+    }
+    dragging=false;holdReady=false;moved=false;pX=0;pY=0;
+  },{passive:true});
 }
 
 function setupDeckDrag(player){
@@ -7669,6 +7718,13 @@ function setupDeckDrag(player){
     }
     dragging=false;holdReady=false;pX=0;pY=0;
   },{passive:false});
+  // ★ v3.36.3: touchcancel でドラッグ状態を確実にクリーンアップ
+  dz.addEventListener('touchcancel',function(){
+    clearTimeout(holdTimer);
+    dz.style.outline='';dz.style.boxShadow='';
+    if(dragging){_abortCardDrag();}
+    dragging=false;holdReady=false;pX=0;pY=0;
+  },{passive:true});
 }
 
 function endDeckDrag(){
@@ -7681,6 +7737,13 @@ function endDeckDrag(){
   const player=cardDragState._player;
   const deckCard=cardDragState._deckCard;
   cardDragState=null;
+
+  // ★ v3.36.3: ターン制限と所有者チェック (endCDrag を経由しないので個別実装)
+  //   - 相手のデッキは触れない (ドロー含む全操作)
+  //   - 相手のターン中は自分のデッキも操作不可
+  var myR=MY_ROLE||'p1';
+  if(player!==myR){ toast('⛔ 相手のデッキは操作できません'); return; }
+  if(!isMyTurn()){ toast('⛔ 相手のターンです'); return; }
 
   // ドロップ先を探す
   let target=null,minA=Infinity;
@@ -7739,6 +7802,8 @@ function endDeckDrag(){
     dpState[player].deck.unshift(top);
     if(bdc)bdc.textContent=dpState[player].deck.length;
   }
+  // ★ v3.36.3 FIX: デッキ D&D が Firebase 同期されていなかった (ドロー等が相手に反映されない)
+  if(typeof fbPushStateDebounced==='function'&&fbListening)fbPushStateDebounced();
 }
 
 function setupLeaderTap(player){
@@ -7771,6 +7836,25 @@ function setupLeaderTap(player){
     saveState();ldrRested[player]=!ldrRested[player];lz.classList.toggle('ldr-rested',ldrRested[player]);
   });
 }
+// ★ v3.36.3: touchcancel (着信・通知・OS介入) でドラッグ中断時のクリーンアップ。
+//   従来は touchcancel ハンドラが無く、cardDragState とゴーストが残留して以後
+//   リーダー REST 切替などが恒久無効化されていた (donDrag||cardDragState ガードに引っ掛かる)。
+function _abortCardDrag(){
+  cardDragState=null;
+  try{
+    if(typeof cGhost!=='undefined' && cGhost){
+      cGhost.style.display='none';
+      cGhost.style.background='';
+      cGhost.style.border='';
+    }
+  }catch(e){}
+  try{
+    document.querySelectorAll('.c-hover,.drop-candidate').forEach(function(el){
+      el.classList.remove('c-hover');el.classList.remove('drop-candidate');
+    });
+  }catch(e){}
+}
+
 function startCDrag(e,id,srcPlayer){
   e.preventDefault();
   const sp=srcPlayer||(function(){const c=testCards.find(x=>x.id===id);return c?(c.loc==='hand_p2'?'p2':'p1'):null;})();
@@ -7928,11 +8012,24 @@ function moveCard(id,targetEl){
   var mc=testCards.find(x=>x.id===id);
   var isMyCard2=mc&&(mc.loc&&(mc.loc.indexOf(myP5)>=0||(myP5==='p1'&&mc.loc==='hand')));
   if(!isMyTurn()&&!isMyCard2){toast('⛔ 相手のターンです');return;}
-  saveState();
+  // ★ v3.36.3 FIX: 同一loc no-op チェックを saveState の前へ移動。
+  //   合成マウスイベント等で同一スロットに「移動」しても Undo に空エントリが
+  //   積まれないようにする。元コードでは下方 L7962 で srcLoc===destLoc 判定だが
+  //   既に saveState 済みで履歴を汚していた。
   const c=testCards.find(x=>x.id===id);if(!c)return;
   const zone=targetEl.dataset.zone,player=targetEl.dataset.player||'p1';
   const idx=targetEl.dataset.idx!=null?parseInt(targetEl.dataset.idx):null;
   const srcLoc=c.loc; // 移動前のloc
+  // 早期 same-loc 判定: 同一スロットへの D&D は何もしない
+  var _earlyDestLoc=null;
+  if(zone==='char'&&idx!=null)_earlyDestLoc='field_'+player+'_'+idx;
+  else if(zone==='stage')_earlyDestLoc='field_'+player+'_stage';
+  else if(zone==='hand')_earlyDestLoc=(player==='p2'?'hand_p2':'hand');
+  else if(zone==='trash')_earlyDestLoc='trash_'+player;
+  else if(zone==='deck')_earlyDestLoc='deck_'+player;
+  else if(zone==='free')_earlyDestLoc='free_'+player;
+  if(srcLoc===_earlyDestLoc)return;
+  saveState();
 
   // ★ ライフD&D仮カード（loc='life_xxx'、id='life_drag_...'）の場合
   // moveCard完了後に仮カードが残らないよう、移動先がhandの場合以外はここで削除しておく
