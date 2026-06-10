@@ -1577,7 +1577,7 @@ function fbStartListen() {
 <div class="scr act" id="scrLogin">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.7</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1593,7 +1593,7 @@ function fbStartListen() {
 <div class="scr" id="scrMode">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.7</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
     <div id="modeUserBadge" class="lobby-user-badge"></div>
   </div>
   <div class="lobby-center">
@@ -1612,7 +1612,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="hostBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.7</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1635,7 +1635,7 @@ function fbStartListen() {
   <div class="hd">
     <button class="hback" id="guestBackBtn">←</button>
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.7</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="lobby-center">
     <div class="lobby-card">
@@ -1655,7 +1655,7 @@ function fbStartListen() {
 <div class="scr" id="scrSelect">
   <div class="hd">
     <div class="logo"><em>OP</em>·TCG BATTLE</div>
-    <div class="logo-ver">BATTLE v3.36.7</div>
+    <div class="logo-ver">BATTLE v3.36.6</div>
   </div>
   <div class="body">
     <div class="pad">
@@ -2272,22 +2272,6 @@ function _clearDropRectCaches(){
 // 画面回転やリサイズで rect は変わるためキャッシュを無効化
 window.addEventListener('resize', _clearDropRectCaches);
 window.addEventListener('orientationchange', _clearDropRectCaches);
-// ★ v3.36.7: renderField の差分判定キー。
-//   スロット表示に影響するカードの状態を 1 文字列にまとめたフィンガープリント。
-//   slot.dataset.rkey と一致すれば DOM 操作を完全スキップする。
-//   キーに含めるべき要素: id (カード入れ替わり), rested (回転), modPower (バフ赤枠),
-//   sAtk/sAct/sEff (ステータスタグ表示), locked (鍵アイコン), img URL (再描画必要)
-function _slotRenderKey(c){
-  if(!c) return 'empty';
-  return [
-    c.id||'',
-    c.rested?'r':'a',
-    parseInt(c.modPower)||0,
-    c.sAtk?1:0, c.sAct?1:0, c.sEff?1:0,
-    c.locked?1:0,
-    c.img||''
-  ].join('|');
-}
 // ★ v3.36.6: DON ドラッグ中の drag-over ハイライト更新 (touchmove ハンドラが 5 箇所コピペされていた)
 function _donDropHighlight(x, y){
   const rects=_getDonDropRects();
@@ -3437,15 +3421,6 @@ function donMove2(fromP,fromZ,fromIdx,toP,toZ,toIdx){
 }
 function renderDonState(p){
   var s=donState[p];
-  // ★ v3.36.7: 差分判定キーで状態未変化なら DOM 操作なしで return。
-  //   renderField から毎回 2 回 (p1/p2) 呼ばれ、活性/休眠ゾーンの innerHTML 全置換 +
-  //   ハンドラ再アサイン + バッジ再生成を走らせていたが、ターン中は大半が unchanged。
-  var dzKeyEl=document.getElementById(p+'DonZone');
-  if(dzKeyEl){
-    var _donKey=s.deck+'/'+s.active+'/'+s.rest+'/'+s.leader+'/'+(s.char||[]).join(',');
-    if(dzKeyEl.dataset.donRkey===_donKey) return;
-    dzKeyEl.dataset.donRkey=_donKey;
-  }
   var dc=document.getElementById(p+'DonCnt');if(dc)dc.textContent=s.deck;
 
   var az=document.getElementById(p+'ActiveZone');
@@ -3725,15 +3700,6 @@ function undoState(){
 
 function showBattleDemo(){
   try{
-  // ★ v3.36.7: 前バトルの差分判定キーをクリアして確実に再描画させる
-  ['p1','p2'].forEach(function(p){
-    var dz=document.getElementById(p+'DonZone'); if(dz) delete dz.dataset.donRkey;
-    var lz=document.getElementById(p+'LeaderZone'); if(lz) delete lz.dataset.rkey;
-    var sz=document.getElementById(p+'StageZone'); if(sz) delete sz.dataset.rkey;
-    var fz=document.getElementById(p+'FreeZone'); if(fz) delete fz.dataset.rkey;
-    var area=document.getElementById(p+'CharArea');
-    if(area) area.querySelectorAll('.cslot').forEach(function(s){ delete s.dataset.rkey; });
-  });
   // ★ バトル状態リセット
   battleTurn=1;
   battleWho='先';
@@ -7592,19 +7558,14 @@ function renderField(){
   const _locIdx = _tcBuildLocIndex();
   // renderField は cloneNode で .c-drop ノードを差し替えるため、rect キャッシュも無効化
   _clearDropRectCaches();
-  // ★ v3.36.7: 差分判定キーで変化なしのスロットを早期スキップ。
-  //   相手の 1 操作で 16 ノードを丸ごと cloneNode + 再生成していたが、
-  //   実際に状態が変わるのは 1〜2 スロットのみ → キー一致のスロットは DOM 非更新。
   ['p1','p2'].forEach(p=>{
     const area=document.getElementById(p+'CharArea');if(!area)return;
     area.querySelectorAll('.cslot').forEach((slot,i)=>{
-      const c=_locIdx.get(`field_${p}_${i}`);
-      const key=_slotRenderKey(c);
-      if(slot.dataset.rkey===key) return; // ★ 差分なし → スキップ
+      // cloneNode前にdonStateのchar値を保持（バッジ再描画のため）
       const fresh=slot.cloneNode(false);
-      fresh.dataset.rkey=key;
       fresh.dataset.player=p;fresh.dataset.idx=i;fresh.dataset.zone='char';fresh.classList.add('c-drop');
       slot.parentNode.replaceChild(fresh,slot);
+      const c=_locIdx.get(`field_${p}_${i}`);
       if(c){
         fresh.classList.add('occupied');fresh.classList.toggle('card-rested',c.rested);fresh.textContent='';
         const cardImgSrc = c.img || resolveCardImg(c.id) || (c.id ? CDN+c.id+'.webp' : '');
@@ -7628,12 +7589,9 @@ function renderField(){
   });
   ['p1','p2'].forEach(p=>{
     const sz=document.getElementById(p+'StageZone');if(!sz)return;
-    const c=_locIdx.get(`stage_${p}`);
-    const key=_slotRenderKey(c);
-    if(sz.dataset.rkey===key) return; // ★ v3.36.7: 差分なし → スキップ
     const fresh=sz.cloneNode(false);fresh.id=p+'StageZone';
-    fresh.dataset.rkey=key;
     sz.parentNode.replaceChild(fresh,sz);fresh.classList.add('c-drop');
+    const c=_locIdx.get(`stage_${p}`);
     if(c){
       fresh.textContent='';
       const img=document.createElement('img');img.src=c.img;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';fresh.appendChild(img);
@@ -7643,13 +7601,10 @@ function renderField(){
   // ★ Freeゾーン描画
   ['p1','p2'].forEach(p=>{
     var fz=document.getElementById(p+'FreeZone');if(!fz)return;
-    var fc=_locIdx.get(`free_${p}`);
-    var key=_slotRenderKey(fc);
-    if(fz.dataset.rkey===key) return; // ★ v3.36.7: 差分なし → スキップ
     // cloneNodeでイベントをリセット
     var freshFz=fz.cloneNode(false);freshFz.id=p+'FreeZone';
-    freshFz.dataset.rkey=key;
     fz.parentNode.replaceChild(freshFz,fz);freshFz.classList.add('c-drop');
+    var fc=_locIdx.get(`free_${p}`);
     if(fc){
       freshFz.classList.add('has-card');freshFz.classList.toggle('card-rested',fc.rested);freshFz.textContent='';
       var fImg=document.createElement('img');
@@ -7664,14 +7619,11 @@ function renderField(){
   });
   // ★ cloneNodeでバッジが消えるのでDON!!バッジを再描画
   renderDonState('p1');renderDonState('p2');
-  // ★ リーダーのmod状態を反映 (cloneNode しないので差分なしならスキップ)
+  // ★ リーダーのmod状態を反映
   ['p1','p2'].forEach(function(p){
     var lc=_locIdx.get('leader_'+p); // ★ v3.36.6: id と loc が同じ値なので loc 索引で OK
     var lz=document.getElementById(p+'LeaderZone');
     if(!lc||!lz)return;
-    var leaderKey=_slotRenderKey(lc);
-    if(lz.dataset.rkey===leaderKey) return; // ★ v3.36.7: 差分なし → スキップ
-    lz.dataset.rkey=leaderKey;
     var pb=lz.querySelector('.power-badge');
     if(pb){
       var basePw=parseInt(lc.power)||5000;var modPw=lc.modPower||0;var dispPw=basePw+modPw;
